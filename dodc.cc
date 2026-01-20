@@ -22,6 +22,7 @@ TODO: specifying "1e8" etc as B1 only works because gmp-ecm parses it. dodc does
 #include "dodc_gmp_ecm.h"
 #include <thread>
 #include <semaphore>
+#include <format>
 //#include "dodc_ppsiqs.h"
 // #include "dodc_msieve.h"
 // #include "dodc_ggnfs.h"
@@ -140,6 +141,57 @@ bool dump_factor( factor f ) {
 	fout << f.factorline << endl;
 	fout.close();
 	return true;
+}
+
+// Submit multiple factors, one per line, with a comment line above each in the
+// format: "#method(methodname)args(args)".
+// Failures must be handled by caller as factors will not be saved in here.
+// Sets factors[].second to false for each submitted factor.
+// Returns number of submitted factors.
+int submit_factors( vector<pair<factor,bool>> &factors ) {
+	int successes = 0;
+	string factorlines;
+	for (auto i = 0; i < factors.size(); ++i) {
+		factorlines += (i ? "\n" : "")
+			+ format("#method({})args({})\n", factors[i].first.method, factors[i].first.args)
+			+ factors[i].first.factorline;
+	}
+	string	postdata = "name=" + urlencode( cfg["name"] )
+		+ "&method=unknown"
+		+ "&factors=" + urlencode( factorlines )
+		+ "&args=unknown"
+		+ "&submitter=" + urlencode( "dodc " + version )
+		;
+	remove( cfg["wgetresultfile"].c_str() );
+
+	cout << "Sending factors to server..." << flush;
+	int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
+	cout << " Done." << endl;
+	if( r != 0 ) {
+		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
+	}
+
+	ifstream f( cfg["wgetresultfile"].c_str() );
+	string	line;
+	string prefix = "JSONResults:";
+	while (getline(f, line)) {
+		if (line.substr(0, prefix.size()) == prefix) {
+			// cout << line << endl;
+			for (auto f : factors) {
+				f.second = line.find(f.first.factorline) == line.npos;
+				successes += f.second ? 0 : 1;
+			}
+		}
+	}
+
+	f.close();
+	if( !successes ) {
+		cout << "ERROR! Couldn't parse submission result." << endl;
+	} else {
+		cout << "Submitted " << successes << " factors." << endl;
+	}
+
+	return successes;
 }
 
 bool submit_factor( string factorline, string method, string args, bool retryattempt, bool forceattempt ) {
@@ -316,13 +368,15 @@ void process_unsubmitted_factors( bool forceattempt ) {
 	}
 
 	cout << "Trying to send your unsubmitted factors..." << endl;
-	int	succeeded = 0;
-	for( vector<pair<factor,bool> >::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i ) {
-		if( submit_factor( i->first.factorline, i->first.method, i->first.args, true, true ) ) {
-			++succeeded;
-			i->second = false;
-		}
-	}
+	int succeeded = submit_factors(unsubmitted);
+
+	// int	succeeded = 0;
+	// for( vector<pair<factor,bool> >::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i ) {
+	// 	if( submit_factor( i->first.factorline, i->first.method, i->first.args, true, true ) ) {
+	// 		++succeeded;
+	// 		i->second = false;
+	// 	}
+	// }
 
 	string	failstring = "Please submit the factors in " + cfg["submitfailurefile"] + " manually\n"
 			+ "or wait and see if dodc manages to submit them automatically later.\n"
