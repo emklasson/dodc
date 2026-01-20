@@ -142,49 +142,58 @@ bool dump_factor( factor f ) {
 	return true;
 }
 
-bool submit_factor( string factorline, string method, string args, bool retryattempt ) {
-	string	postdata = "name=" + urlencode( cfg["name"] )
-		+ "&method=" + urlencode( method )
-		+ "&factors=" + urlencode( factorline )
-		+ "&args=" + urlencode( args )
-		+ "&submitter=" + urlencode( "dodc " + version )
-		;
-	bool	failure = false;
-	remove( cfg["wgetresultfile"].c_str() );
-
-	cout << "Sending factor to server..." << flush;
-	int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
-	cout << " Done." << endl;
-	if( r != 0 ) {
-		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
-		failure = true;
+bool submit_factor( string factorline, string method, string args, bool retryattempt, bool forceattempt ) {
+	static time_t lastattempt = 0;
+	bool failure = false;
+	bool submit = true;
+	if( !forceattempt && ( time( 0 ) - toint( cfg["submitinterval"] ) * 60 < lastattempt ) ) {
+		submit = false;
 	}
 
-	ifstream f( cfg["wgetresultfile"].c_str() );
-	string	line;
-	bool	found = false;
-	while( getline( f, line ) ) {
-		size_t pos = line.find( factorline );
-		if( pos != line.npos ) {
-			if( ( pos = line.find( "</td><td>", pos ) ) != line.npos ) {
-				pos += string( "</td><td>" ).size();
-				size_t last = line.find( "</td>", pos + 1 );
-				if( last != line.npos ) {
-					found = true;
-					cout << "Result: " << line.substr( pos, last - pos ) << endl;
-					break;
+	if (submit) {
+		lastattempt = time( 0 );
+		string	postdata = "name=" + urlencode( cfg["name"] )
+			+ "&method=" + urlencode( method )
+			+ "&factors=" + urlencode( factorline )
+			+ "&args=" + urlencode( args )
+			+ "&submitter=" + urlencode( "dodc " + version )
+			;
+		remove( cfg["wgetresultfile"].c_str() );
+
+		cout << "Sending factor to server..." << flush;
+		int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
+		cout << " Done." << endl;
+		if( r != 0 ) {
+			cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
+			failure = true;
+		}
+
+		ifstream f( cfg["wgetresultfile"].c_str() );
+		string	line;
+		bool	found = false;
+		while( getline( f, line ) ) {
+			size_t pos = line.find( factorline );
+			if( pos != line.npos ) {
+				if( ( pos = line.find( "</td><td>", pos ) ) != line.npos ) {
+					pos += string( "</td><td>" ).size();
+					size_t last = line.find( "</td>", pos + 1 );
+					if( last != line.npos ) {
+						found = true;
+						cout << "Result: " << line.substr( pos, last - pos ) << endl;
+						break;
+					}
 				}
 			}
 		}
+
+		f.close();
+		if( !found ) {
+			cout << "ERROR! Couldn't parse submission result." << endl;
+			failure = true;
+		}
 	}
 
-	f.close();
-	if( !found ) {
-		cout << "ERROR! Couldn't parse submission result." << endl;
-		failure = true;
-	}
-
-	if( failure ) {
+	if( !submit || failure ) {
 		if( !retryattempt ) {
 			dump_factor( factor( factorline, method, args ) );
 			cout << "Your factor has been saved in " << cfg["submitfailurefile"] << " for now." << endl;
@@ -309,7 +318,7 @@ void process_unsubmitted_factors( bool forceattempt ) {
 	cout << "Trying to send your unsubmitted factors..." << endl;
 	int	succeeded = 0;
 	for( vector<pair<factor,bool> >::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i ) {
-		if( submit_factor( i->first.factorline, i->first.method, i->first.args, true ) ) {
+		if( submit_factor( i->first.factorline, i->first.method, i->first.args, true, true ) ) {
 			++succeeded;
 			i->second = false;
 		}
@@ -506,7 +515,7 @@ void found_factor( string factor, bool enhanced, string expr, string inputnumber
 	cout << factorline.str() << "\t" << "(" << tostring( factor.size() ) << " digits)" << endl;
 	fout << factorline.str() << endl;
 	if( cfg["autosubmit"] == "yes" ) {
-		if( submit_factor( factorline.str(), method, args, false ) ) {
+		if( submit_factor( factorline.str(), method, args, false, false ) ) {
 			//it worked! try to send any unsubmitted factors while we're at it
 			process_unsubmitted_factors( true );
 		}
