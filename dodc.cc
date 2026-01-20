@@ -31,23 +31,24 @@ using namespace std;
 // #include <windows.h>
 // #include <process.h>
 
-// HANDLE hsem_wu;		//semaphore handle
-counting_semaphore hsem_wu{0};		//semaphore handle
-// HANDLE hmutex_wu;	//mutex handle
-mutex hmutex_wu;	//mutex handle
-// HANDLE hmutex_wu_result;	//mutex handle
-mutex hmutex_wu_result;	//mutex handle
+counting_semaphore hsem_wu{0};
+mutex hmutex_wu;
+mutex hmutex_wu_result;
+
+queue<int> thread_numbers;
+queue<workunit_t> wu_result_queue;
 
 map<string,string>	cfg;	//configuration data from .ini file and cmdline
 map<string,bool>	okargs;	//allowed configuration arguments. <name,required>
 
-string	okmethods[] = { "ECM", "P-1", "P+1", "MSIEVEQS", "GGNFS_SNFS", "YAFU_QS" };	//supported methods
+string	okmethods[] = { "ECM", "P-1", "P+1" };//, "MSIEVEQS", "GGNFS_SNFS", "YAFU_QS" };	//supported methods
 
 string toupper( string in ) {
 	string s = in;
 	for( uint32 j = 0; j < s.size(); ++j ) {
 		s[j] = toupper( s[j] );
 	}
+
 	return s;
 }
 
@@ -59,9 +60,11 @@ string stripws( string in ) {
 			break;
 		}
 	}
+
 	while( s.size() && isspace( s[s.size() - 1] ) ) {
 		s.resize( s.size() - 1 );
 	}
+
 	return s;
 }
 
@@ -91,6 +94,7 @@ bool isnumber( string s ) {
 			return false;
 		}
 	}
+
 	return true;
 }
 
@@ -111,6 +115,7 @@ string urlencode( string in ) {
 			s += tohex( in[j] % 16 );
 		}
 	}
+
 	return s;
 }
 
@@ -121,9 +126,11 @@ string scientify( string n ) {
 		++e;
 		n.resize( n.size() - 1 );
 	}
+
 	if( e < 4 ) {
 		return n + string( e, '0' );
 	}
+
 	return n + "e" + tostring( e );
 }
 
@@ -144,6 +151,7 @@ bool submit_factor( string factorline, string method, string args, bool retryatt
 		;
 	bool	failure = false;
 	remove( cfg["wgetresultfile"].c_str() );
+
 	cout << "Sending factor to server..." << flush;
 	int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
 	cout << " Done." << endl;
@@ -151,6 +159,7 @@ bool submit_factor( string factorline, string method, string args, bool retryatt
 		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
 		failure = true;
 	}
+
 	ifstream f( cfg["wgetresultfile"].c_str() );
 	string	line;
 	bool	found = false;
@@ -168,18 +177,22 @@ bool submit_factor( string factorline, string method, string args, bool retryatt
 			}
 		}
 	}
+
 	f.close();
 	if( !found ) {
 		cout << "ERROR! Couldn't parse submission result." << endl;
 		failure = true;
 	}
+
 	if( failure ) {
 		if( !retryattempt ) {
 			dump_factor( factor( factorline, method, args ) );
 			cout << "Your factor has been saved in " << cfg["submitfailurefile"] << " for now." << endl;
 		}
+
 		return false;
 	}
+
 	return true;
 }
 
@@ -198,9 +211,11 @@ bool report_work() {
 			+ cfg["wgetresultfile"]
 			+ "\" \"" + url + "\"" ).c_str() );
 	cout << " Done. Thanks!" << endl;
+
 	if( r != 0 ) {
 		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
 	}
+
 	return r == 0;
 }
 
@@ -221,6 +236,7 @@ bool download_composites() {
 		url += "&file" + tostring( filenr++ ) + "=" + tostring( k ) + "t2rn" + ( plusminus == '+' ? "p" : "m" ) + "1.txt";
 		ss >> comma;
 	}
+
 	cout << "Downloading composites..." << flush;
 	int r = system( ( cfg["wgetcmd"]
 			+ " -q --cache=off --output-document=\""
@@ -228,11 +244,13 @@ bool download_composites() {
 			+ ( cfg["use_gzip"] == "yes" ? ".gz" : "" )
 			+ "\" \"" + url + "\"" ).c_str() );
 	cout << " Done." << endl;
+
 	bool probablyerror = false;
 	if( r != 0 ) {
 		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
 		probablyerror = true;
 	}
+
 	if( cfg["use_gzip"] == "yes" ) {
 		cout << "Unpacking composites..." << flush;
 		r = system( ( cfg["gzipcmd"] + " -df " + cfg["compositefile"] + ".gz" ).c_str() );
@@ -242,21 +260,24 @@ bool download_composites() {
 			probablyerror = true;
 		}
 	}
+
 	return probablyerror;
 }
 
-//returns true if all previously unsubmitted factors were submitted ok now
+// Returns true if all previously unsubmitted factors were submitted ok now.
 void process_unsubmitted_factors( bool forceattempt ) {
 	static time_t	lastattempt = 0;
 	if( !forceattempt && ( time( 0 ) - toint( cfg["submitretryinterval"] ) * 60 < lastattempt ) ) {
 		return;
 	}
+
 	lastattempt = time( 0 );
 	ifstream	fin( cfg["submitfailurefile"].c_str() );
 	if( !fin.is_open() ) {
 		//assume file doesn't exist
 		return;
 	}
+
 	map<string,string>	info;
 	info["method"] = cfg["method"];	//use this if method isn't stored in file
 	string	line;
@@ -265,6 +286,7 @@ void process_unsubmitted_factors( bool forceattempt ) {
 		if( !line.size() ) {
 			continue;
 		}
+
 		//is there extra info present?
 		if( line[0] == '#' ) {
 			stringstream	ss( line.substr( 1 ) );
@@ -278,10 +300,12 @@ void process_unsubmitted_factors( bool forceattempt ) {
 		unsubmitted.push_back( make_pair( factor( line, info["method"], info["args"] ), true ) );
 	}
 	fin.close();
+
 	//no unsubmitted factors?
 	if( !unsubmitted.size() ) {
 		return;
 	}
+
 	cout << "Trying to send your unsubmitted factors..." << endl;
 	int	succeeded = 0;
 	for( vector<pair<factor,bool> >::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i ) {
@@ -290,6 +314,7 @@ void process_unsubmitted_factors( bool forceattempt ) {
 			i->second = false;
 		}
 	}
+
 	string	failstring = "Please submit the factors in " + cfg["submitfailurefile"] + " manually\n"
 			+ "or wait and see if dodc manages to submit them automatically later.\n"
 			+ "Manual submit: " + cfg["manualsubmiturl"] + "\n";
@@ -300,6 +325,7 @@ void process_unsubmitted_factors( bool forceattempt ) {
 		cout << failstring;
 		return;
 	}
+
 	//remove all old failures
 	remove( cfg["submitfailurefile"].c_str() );
 	if( succeeded == unsubmitted.size() ) {
@@ -310,6 +336,7 @@ void process_unsubmitted_factors( bool forceattempt ) {
 			<< (uint) unsubmitted.size() << " unsubmitted factors!" << endl;
 		cout << failstring;
 	}
+
 	//dump remaining unsubmitted to file
 	for( vector<pair<factor,bool> >::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i ) {
 		if( i->second ) {
@@ -325,6 +352,7 @@ bool cfg_set( string src, string arg, string val ) {
 		cout << "WARNING: unrecognized option: '" << arg << "'" << endl;
 		return false;
 	}
+
 	cout << src << ": " << arg << " = " << val << endl;
 	cfg[arg] = val;
 	return true;
@@ -337,10 +365,12 @@ bool parse_cmdline( int argc, char ** argv ) {
 			if( arg == "h" || arg == "-help" || arg == "?" ) {
 				return false;	// just display help info, then exit
 			}
+
 			if( j + 1 >= argc ) {
 				cout << "ERROR: cmdline switch without argument: " << argv[j] << endl;
 				return false;
   			}
+
 			cfg_set( "cmdline", arg, argv[j + 1] );
 			j += 2;
 		} else {
@@ -348,6 +378,7 @@ bool parse_cmdline( int argc, char ** argv ) {
 			++j;
 		}
 	}
+
 	return true;
 }
 
@@ -360,6 +391,7 @@ bool read_inifile( string fname ) {
 		cout << "Look in the dodc archive for an example of a proper .ini file." << endl;
 		return false;
 	}
+
 	while( getline( f, line ) ) {
 		stringstream	ss( line );
 		getline( ss, arg, '=' );
@@ -368,12 +400,15 @@ bool read_inifile( string fname ) {
 		if( !getline( ss, val ) ) {
 			continue;
 		}
+
 		val = stripws( val );
 		if( arg.substr( 0, 2 ) == "//" || arg.substr( 0, 1 ) == "#" || arg.substr( 0, 1 ) == ";" ) {
 			continue;
 		}
+
 		cfg_set( "ini", arg, val );
 	}
+
 	f.close();
 	return true;
 }
@@ -390,9 +425,11 @@ bool init_args() {
 	for( int j = 0; j < sizeof( reqargs ) / sizeof( string ); ++j ) {
 		okargs[reqargs[j]] = true;
 	}
+
 	for( int j = 0; j < sizeof( optargs ) / sizeof( string ); ++j ) {
 		okargs[optargs[j]] = false;
 	}
+
 	return true;
 }
 
@@ -403,6 +440,7 @@ bool verify_method( string method ) {
 			return true;
 		}
 	}
+
 	return false;
 }
 
@@ -414,6 +452,7 @@ bool verify_args() {
 			ok = false;
 		}
 	}
+
 	if( toint( cfg["nmin"] ) > toint( cfg["nmax"] ) ) {
 		cout << "ERROR: nmin=" << cfg["nmin"] << " > nmax=" << cfg["nmax"] << " doesn't make sense." << endl;
 		ok = false;
@@ -424,6 +463,7 @@ bool verify_args() {
 		cout << "ERROR: unrecognized method: " << cfg["method"] << endl;
 		ok = false;
 	}
+
 	if( cfg["automethod"] != "" ) {
 		stringstream ss( cfg["automethod"] );
 		string amethod;
@@ -450,6 +490,7 @@ bool verify_args() {
 			cout << "WARNING: running " << cfg["curves"] << " P+1 tests is probably a waste. Try 3 instead." << endl;
 		}
 	}
+
 	return ok;
 }
 
@@ -461,6 +502,7 @@ void found_factor( string factor, bool enhanced, string expr, string inputnumber
 	} else {
 		factorline << factor << " | " << inputnumber;
 	}
+
 	cout << factorline.str() << "\t" << "(" << tostring( factor.size() ) << " digits)" << endl;
 	fout << factorline.str() << endl;
 	if( cfg["autosubmit"] == "yes" ) {
@@ -469,6 +511,7 @@ void found_factor( string factor, bool enhanced, string expr, string inputnumber
 			process_unsubmitted_factors( true );
 		}
 	}
+
 	fout.close();
 }
 
@@ -495,6 +538,7 @@ int init_composites() {
 		}
 		f.close();
 	}
+
 	ifstream f( cfg["compositefile"].c_str() );
 	if( cfg["order"] == "random" ) {
 		vector<pair<string,string> >	v;
@@ -508,6 +552,7 @@ int init_composites() {
 				comment = line;
 			}
 		}
+
 		f.close();
 		random_device rd;
 		mt19937 g(rd());
@@ -517,8 +562,10 @@ int init_composites() {
 			if( v[j].second != "" ) {
 				fout << v[j].second << endl;
 			}
+
 			fout << v[j].first << endl;
 		}
+
 		fout.close();
 	} else {
 		while( getline( f, line ) ) {
@@ -526,32 +573,23 @@ int init_composites() {
 				++cnt;
 			}
 		}
+
 		f.close();
 	}
+
 	return cnt;
 }
 
-
-
-queue<int>	thread_numbers;
-
 void free_workunit( workunit_t * pwu ) {
-	// while( WaitForSingleObject( hmutex_wu, INFINITE ) != WAIT_OBJECT_0 );
 	lock_guard<mutex>	lock( hmutex_wu );
 
 	thread_numbers.push( pwu->threadnumber );
 	delete pwu;
-	// ReleaseSemaphore( hsem_wu, 1, NULL );
 	hsem_wu.release();
-
-	// ReleaseMutex( hmutex_wu );
 }
 
 workunit_t * get_workunit() {
-	// while( WaitForSingleObject( hsem_wu, INFINITE ) != WAIT_OBJECT_0 );
 	hsem_wu.acquire();
-
-	// while( WaitForSingleObject( hmutex_wu, INFINITE ) != WAIT_OBJECT_0 );
 	lock_guard<mutex>	lock( hmutex_wu );
 
 	if( !thread_numbers.size() ) {
@@ -560,42 +598,31 @@ workunit_t * get_workunit() {
 	}
 
 	workunit_t * pwu = new workunit_t;
-
 	pwu->threadnumber = thread_numbers.front();
 	thread_numbers.pop();
-
-	// ReleaseMutex( hmutex_wu );
 
 	return pwu;
 }
 
-
-queue<workunit_t> wu_result_queue;
-
 void add_wu_result( workunit_t * pwu ) {
-	// while( WaitForSingleObject( hmutex_wu_result, INFINITE ) != WAIT_OBJECT_0 );
 	lock_guard<mutex>	lock( hmutex_wu_result );
 
 	wu_result_queue.push( *pwu );
-
-	// ReleaseMutex( hmutex_wu_result );
 }
 
-//returns true if a found factor was handled
+// Returns true if a found factor was handled.
 bool process_wu_results() {
-	// while( WaitForSingleObject( hmutex_wu_result, INFINITE ) != WAIT_OBJECT_0 );
 	lock_guard<mutex>	lock( hmutex_wu_result );
 
 	bool found = false;
-
 	if( wu_result_queue.size() ) {
 		workunit_t & wu = wu_result_queue.front();
 		workunit_result & result = wu.result;
 		stringstream ss( wu.result.factor );
 		string factor;
-		// while( ss >> ws >> factor >> ws ) {
 		while( ss >> factor ) {
 			found_factor( factor, wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args );
+
 			//trial factor found factor if it's small
 			if( factor.size() <= 10 ) {
 				uint64	n = touint64( factor );
@@ -607,36 +634,19 @@ bool process_wu_results() {
 						} while( !( n % f ) );
 					}
 				}
+
 				if( n > 1 && n != touint64( factor ) ) {
 					found_factor( tostring( n ), wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args );
 				}
 			}
 		}
-		//found_factor( wu.result.factor, wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args );
-		////trial factor found factor if it's small
-		//if( wu.result.factor.size() <= 10 ) {
-		//	uint64	n = touint64( wu.result.factor );
-		//	for( uint64 f = 3; f * f <= n; f += 2 ) {
-		//		if( !( n % f ) ) {
-		//			found_factor( tostring( f ), wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args );
-		//			do {
-		//				n /= f;
-		//			} while( !( n % f ) );
-		//		}
-		//	}
-		//	if( n > 1 && n != touint64( wu.result.factor ) ) {
-		//		found_factor( tostring( n ), wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args );
-		//	}
-		//}
+
 		wu_result_queue.pop();
 		found = true;
 	}
 
-	// ReleaseMutex( hmutex_wu_result );
-
 	return found;
 }
-
 
 void process_workunit( void * p ) {
 	workunit_t * pwu = (workunit_t *) p;
@@ -646,7 +656,7 @@ void process_workunit( void * p ) {
 	free_workunit( pwu );
 }
 
-//returns true if a factor was found
+// Returns true if a factor was found.
 void do_workunit( string inputnumber, bool enhanced, string expr ) {
 	workunit_t * pwu = get_workunit();
 	workunit_t & wu = *pwu;
@@ -667,9 +677,11 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 				method = amethod;
 				break;
 			}
+
 			ss >> c;	//skip ";"
 		}
 	}
+
 	cout << "[" << wu.threadnumber << "] ";
 	method = toupper( method );
 	if( enhanced ) {
@@ -677,6 +689,7 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 	} else {
 		cout << "Factoring " << inputnumber << "\t[" << method << "]" << endl;
 	}
+
 	//TODO: check if handlers exist for methods specified in automethods when dodc starts
 
 	// if( method == "MSIEVEQS" ) {
@@ -705,7 +718,6 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 		//foundfactor = do_workunit_gmp_ecm( wu );
 	// }
 
-	//AfxBeginThread( process_workunit, wu );
 	// _beginthread( process_workunit, 0, pwu );
 	thread t( process_workunit, pwu );
 	t.detach();
@@ -713,25 +725,12 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 
 bool init_synchronization() {
 	int threads = toint( cfg["worker_threads"] );
-	// if( !( hsem_wu = CreateSemaphore( NULL, threads, threads, NULL ) ) ) {
-	// 	cout << "ERROR: couldn't create semaphore." << endl;
-	// 	return false;
-	// }
 	hsem_wu.release( threads );
 
-	// if( !( hmutex_wu = CreateMutex( NULL, FALSE, NULL ) ) ) {
-	// 	cout << "ERROR: couldn't create mutex." << endl;
-	// 	return false;
-	// }
-	// if( !( hmutex_wu_result = CreateMutex( NULL, FALSE, NULL ) ) ) {
-	// 	cout << "ERROR: couldn't create mutex." << endl;
-	// 	return false;
-	// }
-
-	//thread_numbers.clear();
 	for( int j = 1; j <= threads; ++j ) {
 		thread_numbers.push( j );
 	}
+
 	return true;
 }
 
@@ -760,10 +759,12 @@ int main( int argc, char ** argv ) {
 	if( !parse_cmdline( argc, argv ) ) {
 		return 0;
 	}
+
 	if( !verify_args() ) {
 		cout << "Fix your settings and try again. Exiting." << endl;
 		return 1;
 	}
+
 	cout << "Using factorization method " << cfg["method"] << endl;
 
 	set_priority();
@@ -792,6 +793,7 @@ int main( int argc, char ** argv ) {
 				break;
 			}
 		}
+
 		ifstream fin( cfg["compositefile"].c_str() );
 		bool	enhanced = false;
 		string	line,expr;
@@ -807,19 +809,24 @@ int main( int argc, char ** argv ) {
 						enhanced = true;
 					}
 				}
+
 				continue;
 			}
+
 			do_workunit( line, enhanced, expr );
 			while( process_wu_results() ) {
 				cout << "#factors found: " << ++totalfactors << endl;
 			}
+
 			process_unsubmitted_factors( false );
 		}
+
 		fin.close();
 		cout << "#factors found: " << totalfactors << endl;
 		if( cfg["reportwork"] == "yes" ) {
 			report_work();
 		}
+
 		//increase b1
 		cfg["b1"] = tostring( touint64( cfg["b1"] ) + touint64( cfg["b1increase"] ) );
 		cout << "Increasing B1 to " << cfg["b1"] << endl;
@@ -828,13 +835,13 @@ int main( int argc, char ** argv ) {
 	cout << "Waiting for worker threads to finish...";
 	while( thread_numbers.size() != toint( cfg["worker_threads"] ) ) {
 		this_thread::sleep_for( chrono::milliseconds( 1000 ) );
-		//static int cnt = 0;
-		//if( ++cnt % 10 == 0 ) cout << "." << endl;
 		while( process_wu_results() ) {
 			cout << endl << "#factors found: " << ++totalfactors << endl;
 		}
+
 		process_unsubmitted_factors( false );
 	}
+
 	cout << endl;
 	while( process_wu_results() ) {
 		cout << "#factors found: " << ++totalfactors << endl;
