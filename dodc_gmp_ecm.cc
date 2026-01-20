@@ -14,8 +14,6 @@ using namespace std;
 
 //returns true if a factor was found
 bool do_workunit_gmp_ecm( workunit_t & wu ) {
-	cout << "[" << wu.threadnumber << "] starting ecm..." << endl;
-
 	workunit_result & result = wu.result;
 	string	line;
 	bool foundfactor = false;
@@ -87,6 +85,5 @@ bool do_workunit_gmp_ecm( workunit_t & wu ) {
 		}
 	}
 	ftmp.close();
-	cout << "[" << wu.threadnumber << "] ecm complete." << endl;
 	return foundfactor;
 }
