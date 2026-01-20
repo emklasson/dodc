@@ -1,0 +1,60 @@
+----- v1.35, 25 Apr 2013
+* updated gmp-ecm's sigma parsing to work with newer versions.
+
+----- v1.32, 26 Feb 2009
++ added automation for snfs jobs using ggnfs.
+
+----- v1.31, 11 Feb 2009
++ if more than 1 worker thread was still running when dodc was about to exit, 
+  they would all be allowed to complete but only the first found factor would 
+  be saved/submitted.
++ all unrecognized methods defaulted to ecm, including "p-1" instead of "P-1".
+
+----- v1.30, 06 Mar 2007
++ new "worker_threads" setting: dodc starts this many worker threads 
+  simultaneously. Makes it a bit easier to use multiprocessor systems.
++ many things...
+
+----- v1.10, 18 Mar 2004
++ new "b1increase" setting increases b1 by this much each time doecm loops.
++ doesn't "scientify" (1000000->1e6) reported b1 value if the result would 
+  have an exponent less than 4.
++ "order = random" processes the composites in random order.
++ new "recommendedwork" setting let's doecm do the work that the server feels 
+  is most needed. This only works if you're using the autodownload feature.
++ new "fallback" setting switches to "recommendedwork = yes" if your primary 
+  list of composites is exhausted. Otherwise doecm quits when that happens.
++ new "method" setting allows easy switching between ECM, P-1, and P+1. Be 
+  sure to coordinate your effort with the project coordinator if you intend to 
+  do anything other than ECM though, as the others waste effort when several 
+  people do the same thing. Just stick with ECM.
++ new "submitretryinterval" setting sets the number of minutes between retry 
+  attempts when a factor submission has failed.
+
+
+----- v1.01, 04 Mar 2004
++ fixed a minor annoyance in the cmdline parser.
++ if you had once gotten an autosubmit failure doecm would keep telling you 
+  you had unsubmitted factors even though it had subsequently submitted them 
+  properly.
++ included 11*2^n+-1 in doecm.ini.
+
+
+----- v1.00, 03 Mar 2004
++ if there is some error during the autosubmit process the factor is now saved 
+  to <submitfailurefile> and is regularly resubmitted until it succeeds.
+
+
+----- v0.91, 03 Mar 2004
++ sends "args" and "submitter" fields when submitting factors.
++ downloads composites in gzipped format if "use_gzip = yes". This cuts 
+  about 50% off the download size.
++ if "reportwork = yes" doecm sends a report of how many curves you ran, 
+  what B1 you used, and what numbers you tried to factor once all composites 
+  are processed. This will be helpful when guessing how big the remaining 
+  factors are.
++ sorts composites in descending order if "order = desc".
+
+
+----- v0.90, 29 Feb 2004
++ Initial release.
