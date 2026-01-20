@@ -3,7 +3,7 @@
 
 using namespace std;
 
-const string version = "v1.35";
+const string version = "v1.36";
 
 typedef unsigned int uint;
 typedef unsigned int uint32;
