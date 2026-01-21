@@ -482,7 +482,7 @@ bool init_args() {
 				"use_gzip", "sort", "order", "compositefile", "compositeurl", "submiturl",
 				"manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
 				"wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
-				"worker_threads"
+				"worker_threads", "submitinterval"
 	};
 	string optargs[] = { "ecmargs", "fallback", "automethod" };
 	for( int j = 0; j < sizeof( reqargs ) / sizeof( string ); ++j ) {
