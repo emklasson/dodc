@@ -23,7 +23,7 @@ bool do_workunit_msieve( workunit_t & wu ) {
 		//ifstream ftmp( "msieve.log" );
 		ifstream ftmp( ( wu.tempfile + ".log" ).c_str() );
 		while( getline( ftmp, line ) ) {
-			uint32 pos = (uint32)line.find( wu.inputnumber );
+			auto pos = line.find( wu.inputnumber );
 			if( pos != line.npos ) {
 				//if( nfs ) {
 				//	result.method = "MSIEVENFS";
@@ -33,7 +33,7 @@ bool do_workunit_msieve( workunit_t & wu ) {
 				result.args = "";
 
 				while( getline( ftmp, line ) ) {
-					pos = (uint32)line.find( "factor:" );
+					pos = line.find( "factor:" );
 					if( pos != line.npos ) {
 						stringstream ss( line.substr( pos + 7 ) );
 						ss >> ws >> result.factor;
