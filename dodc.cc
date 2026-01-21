@@ -24,7 +24,7 @@ TODO: specifying "1e8" etc as B1 only works because gmp-ecm parses it. dodc does
 #include <semaphore>
 #include <format>
 //#include "dodc_ppsiqs.h"
-// #include "dodc_msieve.h"
+#include "dodc_msieve.h"
 // #include "dodc_ggnfs.h"
 // #include "dodc_yafu.h"
 using namespace std;
@@ -42,7 +42,7 @@ queue<workunit_t> wu_result_queue;
 map<string,string>	cfg;	//configuration data from .ini file and cmdline
 map<string,bool>	okargs;	//allowed configuration arguments. <name,required>
 
-string	okmethods[] = { "ECM", "P-1", "P+1" };//, "MSIEVEQS", "GGNFS_SNFS", "YAFU_QS" };	//supported methods
+string	okmethods[] = { "ECM", "P-1", "P+1", "MSIEVEQS" };//, "GGNFS_SNFS", "YAFU_QS" };	//supported methods
 
 string toupper( string in ) {
 	string s = in;
@@ -755,11 +755,11 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 
 	//TODO: check if handlers exist for methods specified in automethods when dodc starts
 
-	// if( method == "MSIEVEQS" ) {
-	// 	wu.tempfile = "msieve" + tostring( wu.threadnumber );
-	// 	wu.method = method;
-	// 	wu.handler = do_workunit_msieve;
-	// 	//foundfactor = do_workunit_msieve( wu );
+	if( method == "MSIEVEQS" ) {
+		wu.tempfile = "msieve" + tostring( wu.threadnumber );
+		wu.method = method;
+		wu.handler = do_workunit_msieve;
+		//foundfactor = do_workunit_msieve( wu );
 	// //} else if( method == "MSIEVENFS" ) {
 	// //	wu.tempfile = "msieve.log" + tostring( threadnum );
 	// //	wu.method = method;
@@ -772,14 +772,14 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 	// 	wu.tempfile = "dodc_yafu_qs_" + tostring( wu.threadnumber );
 	// 	wu.method = method;
 	// 	wu.handler = do_workunit_yafu;
-	// } else {
+	} else {
 		wu.tempfile = cfg["ecmresultfile"] + tostring( wu.threadnumber );
 		wu.cmdline = "echo " + wu.inputnumber + " | " + cfg["ecmcmd"] + " -c " + cfg["curves"] + " " + cfg["ecmargs"] + " " + cfg["b1"] + " > " + wu.tempfile;
 		wu.method = cfg["method"];
 		wu.b1 = cfg["b1"];
 		wu.handler = do_workunit_gmp_ecm;
 		//foundfactor = do_workunit_gmp_ecm( wu );
-	// }
+	}
 
 	// _beginthread( process_workunit, 0, pwu );
 	thread t( process_workunit, pwu );
