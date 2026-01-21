@@ -187,8 +187,6 @@ int submit_factors( vector<pair<factor,bool>> &factors ) {
 	f.close();
 	if( !successes ) {
 		cout << "ERROR! Couldn't parse submission result." << endl;
-	} else {
-		cout << "Submitted " << successes << " factors." << endl;
 	}
 
 	return successes;
@@ -392,7 +390,7 @@ void process_unsubmitted_factors( bool forceattempt ) {
 	//remove all old failures
 	remove( cfg["submitfailurefile"].c_str() );
 	if( succeeded == unsubmitted.size() ) {
-		cout << "Submitted all of your unsubmitted factors!" << endl;
+		cout << "Submitted all " << tostring(succeeded) << " of your unsubmitted factors!" << endl;
 		return;
 	} else {
 		cout << "Submitted " << tostring( succeeded ) << " of your "
