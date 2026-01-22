@@ -311,11 +311,9 @@ bool download_composites() {
 	}
 
 	if( cfg["use_gzip"] == "yes" ) {
-		cout << "Unpacking composites..." << flush;
 		r = system( ( cfg["gzipcmd"] + " -df " + cfg["compositefile"] + ".gz" ).c_str() );
-		cout << " Done." << endl;
 		if( r != 0 ) {
-			cout << "WARNING: gzip returned " << r << ". There was probably an error." << endl;
+			cout << "WARNING: gzip returned " << r << ". There was probably an error unpacking composites." << endl;
 			probablyerror = true;
 		}
 	}
@@ -582,7 +580,6 @@ void found_factor( string factor, bool enhanced, string expr, string inputnumber
 int init_composites() {
 	int cnt = 0;
 	string	line;
-	cout << "Initializing..." << endl;
 	if( cfg["recommendedwork"] == "yes" ) {
 		ifstream f( cfg["compositefile"].c_str() );
 		getline( f, line );
