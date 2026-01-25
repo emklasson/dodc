@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+
+import datetime
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+
+def write_poly(filename, k, a, n, d, expression):
+    with open(filename, "w") as f:
+        f.write(f"# Polynomial for {expression}\n")
+        k_poly = k
+        d_poly = d
+        n_poly = n
+        n_mod = n % 5
+        if n_mod < 3:
+            k_poly = k * a ** n_mod
+            n_poly = n - n_mod
+        else:
+            d_poly = d * a ** (5 - n_mod)
+            n_poly = n + 5 - n_mod
+        f.write(f"# adjusted: {k_poly} * {a}^{n_poly} {'+' if d_poly > 0 else '-'} {abs(d_poly)}\n")
+        root = a**int(n_poly / 5)
+        f.write(f"# root {a}^{int(n_poly / 5)} = {root}\n")
+        f.write(f"# poly x - {root}\n")
+        f.write(f"n: {k * a**n + d}\n")
+        f.write("skew: 1.0\n")
+        f.write(f"c5: {k_poly}\n")
+        f.write(f"c0: {d_poly}\n")
+        f.write("Y1: 1\n")
+        f.write(f"Y0: {-root}\n")
+
+
+def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, k, a, n, d, expression, cfg):
+    threads = cfg['tasks.threads']
+    with open(param_filename, "w") as f:
+        f.write(f"# {expression}\n")
+        f.write(f"name = {poly_filename.stem}\n")
+        f.write(f"N = {k * a**n + d}\n\n")
+        f.write(f"tasks.threads = {threads}\n")
+        f.write(f"tasks.sieve.las.threads = {threads}\n")
+        f.write('''
+# The remaining values in this file are from the sample parameters for F9 = 2^512+1
+# They seem to work reasonably well for k*2^n+-1 with n around 450-500 though.
+
+tasks.lim0 = 2300000
+tasks.lim1 = 1200000
+tasks.lpb0 = 26
+tasks.lpb1 = 26
+
+# We supply the SNFS polynomial, so we don't want any polynomial selection
+# to happen. To this effect we set admin and admax both to 0.
+tasks.polyselect.admin = 0
+tasks.polyselect.admax = 0
+tasks.polyselect.adrange = 0
+''')
+        f.write(f"tasks.polyselect.import = {dodc_cado_path/poly_filename}\n")
+        f.write('''
+# Sieving parameters
+tasks.sieve.mfb0 = 52
+tasks.sieve.mfb1 = 52
+tasks.sieve.lambda0 = 2.1
+tasks.sieve.lambda1 = 2.2
+tasks.I = 12
+tasks.qmin = 2000000
+tasks.sieve.qrange = 5000
+tasks.sieve.sqside = 0
+
+# linear algebra
+tasks.linalg.m = 64
+tasks.linalg.n = 64
+tasks.linalg.characters.nchar = 50
+''')
+
+
+def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg):
+    log_path = dodc_cado_path/filename.with_suffix(".log")
+    with open(filename, "w") as f:
+        f.write("#!/bin/sh\n\n")
+        f.write(f"cd {cfg["cado_nfs_path"]}\n")
+        f.write("source cado-nfs.venv/bin/activate\n")
+
+        # cado-nfs is using stderr to write everything except the factors.
+        redirect_stderr = f"2> {log_path}"
+        f.write(f"nice -n {cfg["priority"]} ./cado-nfs.py {dodc_cado_path/param_filename} slaves.hostnames=localhost {redirect_stderr}\n")
+        # f.write(f"nice -n {cfg["priority"]} ./cado-nfs.py {17*2**106+1} {redirect_stderr}\n")
+
+
+def parse_time(seconds):
+    return str(datetime.timedelta(seconds=int(float(seconds))))
+
+
+def main(expression, threads):
+    try:
+        [k, a, n, d] = [int(t) for t in re.split(r'[*^+-]', expression)]
+    except ValueError:
+        print(f"Couldn't parse expression: '{expression}'.")
+        sys.exit(1)
+
+    filename_stem = Path(f"{k}t{a}r{n}{'p' if d > 0 else 'm'}{abs(d)}")
+    poly_filename = filename_stem.with_suffix(".poly")
+    param_filename = filename_stem.with_suffix(".param")
+    sh_filename = filename_stem.with_suffix(".sh")
+    log_filename = filename_stem.with_suffix(".log")
+
+    try:
+        with open("dodc_cado_snfs.cfg", "r") as f:
+            cfg = json.load(f)
+    except json.JSONDecodeError:
+        print("Error decoding cfg file. Exiting...")
+        sys.exit(1)
+
+    if threads:
+        cfg['tasks.threads'] = threads
+
+    dir = "cado_snfs"
+    os.makedirs(dir, exist_ok=True)
+    os.chdir(dir)
+    dodc_cado_path = Path(os.getcwd())
+    write_poly(poly_filename, k, a, n, d, expression)
+    write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, expression, cfg)
+    write_script(sh_filename, param_filename, dodc_cado_path, cfg)
+
+    result = subprocess.run(["sh", f"./{sh_filename}"], capture_output=True, text=True)
+
+    with open(log_filename, "a+") as f:
+        f.write(result.stdout)
+        f.seek(0, os.SEEK_SET)
+        result_lines = f.readlines()
+
+    for line in result_lines[-10:]:
+        if "Complete Factorization / Discrete logarithm: Total cpu/elapsed time" in line:
+            times = line.split("entire Complete Factorization ")[1]
+            if len(times) > 1:
+                times = re.split(r"[\/ ]", times)
+                print(f"CPU time: {parse_time(times[0])}. Wall time: {parse_time(times[1])}")
+
+    print(result_lines[-1])
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python dodc_cado_snfs.py <expression> [-t <threads>] [-s]")
+        print("  <expression>\tAn expression on the form <k*a^n+d> or <k*a^n-d>.")
+        print("    E.g. 17*2^453+1")
+        print("  -t <threads>\tThe max number of threads to use.")
+        sys.exit(1)
+
+    threads = None
+    # silent = False
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == "-t" and i + 1 < len(sys.argv):
+            threads = int(sys.argv[i + 1])
+            i += 2
+        # elif sys.argv[i] == "-s":
+        #     silent = True
+        #     i += 1
+        else:
+            expression = sys.argv[i]
+            i += 1
+
+    main(expression, threads)
