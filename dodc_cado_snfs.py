@@ -147,7 +147,7 @@ def main(expression, threads):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python dodc_cado_snfs.py <expression> [-t <threads>] [-s]")
+        print("Usage: python dodc_cado_snfs.py <expression> [-t <threads>]")
         print("  <expression>\tAn expression on the form <k*a^n+d> or <k*a^n-d>.")
         print("    E.g. 17*2^453+1")
         print("  -t <threads>\tThe max number of threads to use.")
