@@ -5,3 +5,6 @@ dodc
 dodc_unsubmitted_factors.txt
 msieve*.log
 msieve*.dat
+dodc_cado_snfs_*
+dodc_cado_nfs_*
+*/*
