@@ -139,7 +139,10 @@ def main(expression, threads):
                 times = re.split(r"[\/ ]", times)
                 print(f"CPU time: {parse_time(times[0])}. Wall time: {parse_time(times[1])}")
 
-    print(result_lines[-1])
+    if all(c.isdecimal() or c == " " for c in result_lines[-1].strip()):
+        print(f"factors: {result_lines[-1].strip()}")
+    else:
+        print(f"ERROR: no factors found. Check {dodc_cado_path/log_filename}.")
 
 
 if __name__ == "__main__":
