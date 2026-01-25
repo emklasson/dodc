@@ -80,7 +80,7 @@ def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg
     log_path = dodc_cado_path/filename.with_suffix(".log")
     with open(filename, "w") as f:
         f.write("#!/bin/sh\n\n")
-        f.write(f"cd {cfg["cado_nfs_path"]}\n")
+        f.write(f"cd {cfg['cado_nfs_path']}\n")
         f.write("source cado-nfs.venv/bin/activate\n")
 
         # cado-nfs is using stderr to write everything except the factors.
