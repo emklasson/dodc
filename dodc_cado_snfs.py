@@ -84,9 +84,10 @@ def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg
         f.write("source cado-nfs.venv/bin/activate\n")
 
         # cado-nfs is using stderr to write everything except the factors.
-        redirect_stderr = f"2> {log_path}"
-        f.write(f"nice -n {cfg["priority"]} ./cado-nfs.py {dodc_cado_path/param_filename} slaves.hostnames=localhost {redirect_stderr}\n")
-        # f.write(f"nice -n {cfg["priority"]} ./cado-nfs.py {17*2**106+1} {redirect_stderr}\n")
+        redirect_stderr = f"2>> {log_path}"
+        # Something bugs out in cado-nfs when called from dodc unless server.ssl=no.
+        f.write(f"nice -n {cfg['priority']} ./cado-nfs.py {dodc_cado_path/param_filename} server.ssl=no slaves.hostnames=localhost {redirect_stderr}\n")
+        # f.write(f"nice -n {cfg['priority']} ./cado-nfs.py {17*2**208+1} {redirect_stderr}\n")
 
 
 def parse_time(seconds):
