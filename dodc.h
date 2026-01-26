@@ -1,6 +1,8 @@
 #if !defined(__dodc_h_included)
 #define __dodc_h_included
 
+#include <map>
+#include <string>
 using namespace std;
 
 const string version = "v1.36";
