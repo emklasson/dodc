@@ -7,7 +7,16 @@ using namespace std;
 
 // Returns true if a factor was found.
 bool do_workunit_cado_nfs (workunit_t & wu) {
-    wu.cmdline = "./dodc_cado_snfs.py '" + wu.expr + "'" + " > " + wu.tempfile;
+    wu.result.args = "cado";
+    wu.result.factor = "";
+    if (wu.method == "CADO_SNFS") {
+        wu.result.method = "SNFS";
+        wu.cmdline = "./dodc_cado_snfs.py '" + wu.expr + "' > " + wu.tempfile;
+    } else {
+        wu.result.method = "GNFS";
+        wu.cmdline = "./dodc_cado_snfs.py -g '" + wu.inputnumber + "' > " + wu.tempfile;
+    }
+
     pid_t pid;
     posix_spawnp(
         &pid,
@@ -22,10 +31,6 @@ bool do_workunit_cado_nfs (workunit_t & wu) {
         }.data()),
         nullptr);
     waitpid(pid, nullptr, 0);
-
-    wu.result.method = "SNFS";
-    wu.result.args = "cado";
-    wu.result.factor = "";
 
     string tag = "factors: ";
 	string line;

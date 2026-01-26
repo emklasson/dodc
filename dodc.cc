@@ -43,7 +43,7 @@ queue<workunit_t> wu_result_queue;
 map<string,string>	cfg;	//configuration data from .ini file and cmdline
 map<string,bool>	okargs;	//allowed configuration arguments. <name,required>
 
-string	okmethods[] = { "ECM", "P-1", "P+1", "MSIEVEQS", "CADO_SNFS" };//, "GGNFS_SNFS", "YAFU_QS" };	//supported methods
+string	okmethods[] = { "ECM", "P-1", "P+1", "MSIEVEQS", "CADO_SNFS", "CADO_GNFS" };//, "GGNFS_SNFS", "YAFU_QS" };	//supported methods
 
 string toupper( string in ) {
 	string s = in;
@@ -777,7 +777,7 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 	// 	wu.tempfile = "dodc_yafu_qs_" + tostring( wu.threadnumber );
 	// 	wu.method = method;
 	// 	wu.handler = do_workunit_yafu;
-	} else if( method == "CADO_SNFS" ) {
+	} else if( method == "CADO_SNFS" || method == "CADO_GNFS" ) {
 		wu.tempfile = "dodc_cado_nfs_" + tostring( wu.threadnumber );
 		wu.method = method;
 		wu.handler = do_workunit_cado_nfs;
