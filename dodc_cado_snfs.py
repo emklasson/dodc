@@ -104,6 +104,8 @@ def parse_time(seconds):
 def parse_expression(expression):
     try:
         [k, a, n, d] = [int(t) for t in re.split(r'[*^+-]', expression)]
+        if '-' in expression:
+            d = -d
         return [k, a, n, d]
     except ValueError:
         print(f"Couldn't parse expression: '{expression}'.")
