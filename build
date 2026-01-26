@@ -1,1 +1,1 @@
-clang++ -std=c++20 dodc.cc dodc_gmp_ecm.cc dodc_msieve.cc -o dodc
+clang++ -std=c++20 dodc.cc dodc_gmp_ecm.cc dodc_msieve.cc dodc_cado_nfs.cc -o dodc
