@@ -87,7 +87,7 @@ def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg
         redirect_stderr = f"2>> {log_path}"
 
         if gnfs:
-            arg = number
+            arg = f"-t {cfg['tasks.threads']} {number}"
         else:
             arg = dodc_cado_path/param_filename
 
