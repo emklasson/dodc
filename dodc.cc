@@ -481,7 +481,7 @@ bool init_args() {
 				"wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
 				"worker_threads", "submitinterval"
 	};
-	string optargs[] = { "ecmargs", "fallback", "automethod" };
+	string optargs[] = { "ecmargs", "fallback", "automethod", "less_spam" };
 	for( int j = 0; j < sizeof( reqargs ) / sizeof( string ); ++j ) {
 		okargs[reqargs[j]] = true;
 	}
@@ -743,10 +743,19 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 
 	cout << "[" << wu.threadnumber << "] ";
 	method = toupper( method );
+	string msg;
 	if( enhanced ) {
-		cout << "Factoring " << expr << " c" << (uint32)inputnumber.size() << "\t[" << method << "]" << endl;
+		msg = format("Factoring {} c{}", expr, inputnumber.size());
 	} else {
-		cout << "Factoring " << inputnumber << "\t[" << method << "]" << endl;
+		msg = format("Factoring {}", inputnumber);
+	}
+
+	string tab = string(8 - (msg.size() % 8), ' ');
+	msg = format("{}{}[{}]    ", msg, tab, method);
+	if (cfg["less_spam"] == "yes") {
+		cout << msg << "\r" << flush;
+	} else {
+		cout << msg << endl;
 	}
 
 	//TODO: check if handlers exist for methods specified in automethods when dodc starts
@@ -878,14 +887,14 @@ int main( int argc, char ** argv ) {
 
 			do_workunit( line, enhanced, expr );
 			while( process_wu_results() ) {
-				cout << "#factors found: " << ++totalfactors << endl;
+				cout << "#factors found: " << ++totalfactors << "    " << endl;
 			}
 
 			process_unsubmitted_factors( false );
 		}
 
 		fin.close();
-		cout << "#factors found: " << totalfactors << endl;
+		cout << "#factors found: " << totalfactors << "    " << endl;
 		if( cfg["reportwork"] == "yes" ) {
 			report_work();
 		}
