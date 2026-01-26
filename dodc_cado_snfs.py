@@ -76,7 +76,7 @@ tasks.linalg.characters.nchar = 50
 ''')
 
 
-def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg):
+def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg, gnfs, number):
     log_path = dodc_cado_path/filename.with_suffix(".log")
     with open(filename, "w") as f:
         f.write("#!/bin/sh\n\n")
@@ -85,8 +85,15 @@ def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg
 
         # cado-nfs is using stderr to write everything except the factors.
         redirect_stderr = f"2>> {log_path}"
+
+        if gnfs:
+            arg = number
+        else:
+            arg = dodc_cado_path/param_filename
+
         # Something bugs out in cado-nfs when called from dodc unless server.ssl=no.
-        f.write(f"nice -n {cfg['priority']} ./cado-nfs.py {dodc_cado_path/param_filename} server.ssl=no slaves.hostnames=localhost {redirect_stderr}\n")
+        f.write(f"nice -n {cfg['priority']} ./cado-nfs.py {arg} server.ssl=no slaves.hostnames=localhost {redirect_stderr}\n")
+
         # f.write(f"nice -n {cfg['priority']} ./cado-nfs.py {17*2**208+1} {redirect_stderr}\n")
 
 
@@ -94,14 +101,25 @@ def parse_time(seconds):
     return str(datetime.timedelta(seconds=int(float(seconds))))
 
 
-def main(expression, threads):
+def parse_expression(expression):
     try:
         [k, a, n, d] = [int(t) for t in re.split(r'[*^+-]', expression)]
+        return [k, a, n, d]
     except ValueError:
         print(f"Couldn't parse expression: '{expression}'.")
         sys.exit(1)
 
-    filename_stem = Path(f"{k}t{a}r{n}{'p' if d > 0 else 'm'}{abs(d)}")
+
+def main(expression, threads, gnfs):
+    expression = expression.strip()
+    if gnfs and all(c.isdecimal() for c in expression):
+        number = expression
+        filename_stem = Path(f"c{len(number)}_{number}")
+    else:
+        [k, a, n, d] = parse_expression(expression)
+        number = k * a ** n + d
+        filename_stem = Path(f"{k}t{a}r{n}{'p' if d > 0 else 'm'}{abs(d)}")
+
     poly_filename = filename_stem.with_suffix(".poly")
     param_filename = filename_stem.with_suffix(".param")
     sh_filename = filename_stem.with_suffix(".sh")
@@ -121,9 +139,10 @@ def main(expression, threads):
     os.makedirs(dir, exist_ok=True)
     os.chdir(dir)
     dodc_cado_path = Path(os.getcwd())
-    write_poly(poly_filename, k, a, n, d, expression)
-    write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, expression, cfg)
-    write_script(sh_filename, param_filename, dodc_cado_path, cfg)
+    if not gnfs:
+        write_poly(poly_filename, k, a, n, d, expression)
+        write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, expression, cfg)
+    write_script(sh_filename, param_filename, dodc_cado_path, cfg, gnfs, number)
 
     result = subprocess.run(["sh", f"./{sh_filename}"], capture_output=True, text=True)
 
@@ -147,24 +166,25 @@ def main(expression, threads):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python dodc_cado_snfs.py <expression> [-t <threads>]")
-        print("  <expression>\tAn expression on the form <k*a^n+d> or <k*a^n-d>.")
+        print("Usage: python dodc_cado_snfs.py <expression> [-t <threads>] [-g]")
+        print("  <expression>\tAn expression on the form <k*a^n+d>, <k*a^n-d>, or an integer.")
         print("    E.g. 17*2^453+1")
         print("  -t <threads>\tThe max number of threads to use.")
+        print("  -g\tUse GNFS.")
         sys.exit(1)
 
     threads = None
-    # silent = False
+    gnfs = False
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-t" and i + 1 < len(sys.argv):
             threads = int(sys.argv[i + 1])
             i += 2
-        # elif sys.argv[i] == "-s":
-        #     silent = True
-        #     i += 1
+        elif sys.argv[i] == "-g":
+            gnfs = True
+            i += 1
         else:
             expression = sys.argv[i]
             i += 1
 
-    main(expression, threads)
+    main(expression, threads, gnfs)
