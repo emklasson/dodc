@@ -564,22 +564,19 @@ bool verify_args() {
 	return ok;
 }
 
-void found_factor( string factor, bool enhanced, string expr, string inputnumber, string method, string args ) {
+void found_factor( string foundfactor, bool enhanced, string expr, string inputnumber, string method, string args ) {
 	ofstream	fout( cfg["factorfile"].c_str(), ios::app );
 	stringstream	factorline;
 	if( enhanced ) {
-		factorline << factor << " | " << expr;
+		factorline << foundfactor << " | " << expr;
 	} else {
-		factorline << factor << " | " << inputnumber;
+		factorline << foundfactor << " | " << inputnumber;
 	}
 
-	cout << factorline.str() << "\t" << "(" << tostring( factor.size() ) << " digits)" << endl;
+	cout << factorline.str() << "\t" << "(" << tostring( foundfactor.size() ) << " digits)" << endl;
 	fout << factorline.str() << endl;
 	if( cfg["autosubmit"] == "yes" ) {
-		if( submit_factor( factorline.str(), method, args, false, false ) ) {
-			//it worked! try to send any unsubmitted factors while we're at it
-			process_unsubmitted_factors( true );
-		}
+		dump_factor(factor(factorline.str(), method, args));
 	}
 
 	fout.close();
@@ -708,6 +705,12 @@ bool process_wu_results() {
 					found_factor( tostring( n ), wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args );
 				}
 			}
+		}
+
+		if (submit_interval_passed()) {
+			process_unsubmitted_factors(true);
+		} else {
+			cout << "Factor(s) saved in " << cfg["submitfailurefile"] << " for now." << endl;
 		}
 
 		wu_result_queue.pop();
