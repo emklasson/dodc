@@ -34,10 +34,11 @@ using namespace std;
 // #include <process.h>
 
 counting_semaphore hsem_wu{0};
-mutex hmutex_wu;
+mutex hmutex_wu;	// Controls access to thread_numbers and used_thread_numbers.
 mutex hmutex_wu_result;
 
 queue<int> thread_numbers;
+set<int>  used_thread_numbers;	// Thread numbers used by the worker threads.
 queue<workunit_t> wu_result_queue;
 
 map<string,string>	cfg;	//configuration data from .ini file and cmdline
@@ -423,7 +424,7 @@ bool cfg_set( string src, string arg, string val ) {
 		return false;
 	}
 
-	cout << src << ": " << arg << " = " << val << endl;
+	cout << src << ": " << arg << " = " << val << "    " << endl;
 	cfg[arg] = val;
 	return true;
 }
@@ -452,13 +453,43 @@ bool parse_cmdline( int argc, char ** argv ) {
 	return true;
 }
 
-bool read_inifile( string fname ) {
+void adjust_worker_threads(int from, int to) {
+	if (from > to) {
+		for (int j = from; j > to; --j) {
+			cout << "Waiting to remove a finished worker thread..." << endl;
+			hsem_wu.acquire();
+			lock_guard<mutex> lock( hmutex_wu );
+			int n = thread_numbers.front();
+			thread_numbers.pop();
+			used_thread_numbers.erase(n);
+			cout << "Removing worker thread " << n << endl;
+		}
+	} else {
+		// Check what thread numbers are free and use the lowest ones.
+		int count = to - from;
+		cout << "Adding " << count << " worker thread" << (count > 1 ? "s." : ".") << endl;
+		lock_guard<mutex> lock( hmutex_wu );
+		for (int n = 1; n <= to && from < to; ++n) {
+			if (!used_thread_numbers.contains(n)) {
+				thread_numbers.push(n);
+				used_thread_numbers.insert(n);
+				hsem_wu.release();
+				++from;
+			}
+		}
+	}
+}
+
+bool read_inifile( string fname, bool silent_fail = false ) {
 	ifstream f( fname.c_str() );
 	string	line,arg,val;
 
 	if( !f.is_open() ) {
-		cout << "ERROR: couldn't open .ini file: " << fname << endl;
-		cout << "Look in the dodc archive for an example of a proper .ini file." << endl;
+		if( !silent_fail ) {
+			cout << "ERROR: couldn't open .ini file: " << fname << endl;
+			cout << "Look in the dodc archive for an example of a proper .ini file." << endl;
+		}
+
 		return false;
 	}
 
@@ -481,6 +512,22 @@ bool read_inifile( string fname ) {
 
 	f.close();
 	return true;
+}
+
+void read_live_config() {
+	string live_filename = "dodc_live.ini";
+	int threads = toint(cfg["worker_threads"]);
+
+	if (!read_inifile(live_filename, true)) {
+		return;
+	}
+
+	int new_threads = toint(cfg["worker_threads"]);
+	if (new_threads != threads) {
+		adjust_worker_threads(threads, new_threads);
+	}
+
+	remove(live_filename.c_str());
 }
 
 bool init_args() {
@@ -655,7 +702,11 @@ void free_workunit( workunit_t * pwu ) {
 }
 
 workunit_t * get_workunit() {
-	hsem_wu.acquire();
+	read_live_config();
+	while (!hsem_wu.try_acquire_for(chrono::seconds(5))) {
+		read_live_config();
+	}
+
 	lock_guard<mutex>	lock( hmutex_wu );
 
 	if( !thread_numbers.size() ) {
@@ -808,16 +859,6 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 	t.detach();
 }
 
-bool init_synchronization() {
-	int threads = toint( cfg["worker_threads"] );
-	for( int j = 1; j <= threads; ++j ) {
-		thread_numbers.push( j );
-	}
-
-	hsem_wu.release( threads );
-	return true;
-}
-
 //sets process priority from 0 to 4 with 0 being idle and 4 being high.
 void set_priority( int priority = 0 ) {
 #if defined(WIN32)
@@ -852,8 +893,7 @@ int main( int argc, char ** argv ) {
 	cout << "Using factorization method " << cfg["method"] << endl;
 
 	set_priority();
-
-	if( !init_synchronization() ) return 1;
+	adjust_worker_threads(0, toint(cfg["worker_threads"]));
 
 	int	totalfactors = 0;
 	do {
