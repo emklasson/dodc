@@ -810,12 +810,11 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 
 bool init_synchronization() {
 	int threads = toint( cfg["worker_threads"] );
-	hsem_wu.release( threads );
-
 	for( int j = 1; j <= threads; ++j ) {
 		thread_numbers.push( j );
 	}
 
+	hsem_wu.release( threads );
 	return true;
 }
 
