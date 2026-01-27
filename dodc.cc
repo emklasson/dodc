@@ -193,16 +193,26 @@ int submit_factors( vector<pair<factor,bool>> &factors ) {
 	return successes;
 }
 
-bool submit_factor( string factorline, string method, string args, bool retryattempt, bool forceattempt ) {
+//  Returns true if submitinterval has passed since last time that happened.
+bool submit_interval_passed() {
 	static time_t lastattempt = 0;
+	auto now = time(0);
+	if (now - toint( cfg["submitinterval"] ) * 60 >= lastattempt) {
+		lastattempt = now;
+		return true;
+	}
+
+	return false;
+}
+
+bool submit_factor( string factorline, string method, string args, bool retryattempt, bool forceattempt ) {
 	bool failure = false;
 	bool submit = true;
-	if( !forceattempt && ( time( 0 ) - toint( cfg["submitinterval"] ) * 60 < lastattempt ) ) {
+	if( !submit_interval_passed() && !forceattempt ) {
 		submit = false;
 	}
 
 	if (submit) {
-		lastattempt = time( 0 );
 		string	postdata = "name=" + urlencode( cfg["name"] )
 			+ "&method=" + urlencode( method )
 			+ "&factors=" + urlencode( factorline )
