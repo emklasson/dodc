@@ -128,7 +128,7 @@ def main(expression, threads, gnfs):
     log_filename = filename_stem.with_suffix(".log")
 
     try:
-        with open("dodc_cado_snfs.cfg", "r") as f:
+        with open("dodc_cado_nfs.cfg", "r") as f:
             cfg = json.load(f)
     except json.JSONDecodeError:
         print("Error decoding cfg file. Exiting...")
@@ -137,7 +137,7 @@ def main(expression, threads, gnfs):
     if threads:
         cfg['tasks.threads'] = threads
 
-    dir = "cado_snfs"
+    dir = "cado_nfs"
     os.makedirs(dir, exist_ok=True)
     os.chdir(dir)
     dodc_cado_path = Path(os.getcwd())
@@ -168,7 +168,7 @@ def main(expression, threads, gnfs):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python dodc_cado_snfs.py <expression> [-t <threads>] [-g]")
+        print("Usage: python dodc_cado_nfs.py <expression> [-t <threads>] [-g]")
         print("  <expression>\tAn expression on the form <k*a^n+d>, <k*a^n-d>, or an integer.")
         print("    E.g. 17*2^453+1")
         print("  -t <threads>\tThe max number of threads to use.")
