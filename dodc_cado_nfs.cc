@@ -11,10 +11,10 @@ bool do_workunit_cado_nfs (workunit_t & wu) {
     wu.result.factor = "";
     if (wu.method == "CADO_SNFS") {
         wu.result.method = "SNFS";
-        wu.cmdline = "./dodc_cado_snfs.py '" + wu.expr + "' > " + wu.tempfile;
+        wu.cmdline = "./dodc_cado_nfs.py '" + wu.expr + "' > " + wu.tempfile;
     } else {
         wu.result.method = "GNFS";
-        wu.cmdline = "./dodc_cado_snfs.py -g '" + wu.inputnumber + "' > " + wu.tempfile;
+        wu.cmdline = "./dodc_cado_nfs.py -g '" + wu.inputnumber + "' > " + wu.tempfile;
     }
 
     pid_t pid;
