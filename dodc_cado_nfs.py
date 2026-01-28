@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 
-def write_poly(filename, k, a, n, d, expression):
+def write_poly(filename, k, a, n, d, expression, cfg):
     with open(filename, "w") as f:
         f.write(f"# Polynomial for {expression}\n")
         k_poly = k
@@ -26,7 +26,7 @@ def write_poly(filename, k, a, n, d, expression):
         root = a**int(n_poly / 5)
         f.write(f"# root {a}^{int(n_poly / 5)} = {root}\n")
         f.write(f"# poly x - {root}\n")
-        f.write(f"n: {k * a**n + d}\n")
+        f.write(f"n: {cfg['cofactor']}\n")
         f.write("skew: 1.0\n")
         f.write(f"c5: {k_poly}\n")
         f.write(f"c0: {d_poly}\n")
@@ -39,7 +39,7 @@ def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, 
     with open(param_filename, "w") as f:
         f.write(f"# {expression}\n")
         f.write(f"name = {poly_filename.stem}\n")
-        f.write(f"N = {k * a**n + d}\n\n")
+        f.write(f"N = {cfg['cofactor']}\n\n")
         f.write(f"tasks.threads = {threads}\n")
         f.write(f"tasks.sieve.las.threads = {threads}\n")
         f.write('''
@@ -112,7 +112,7 @@ def parse_expression(expression):
         sys.exit(1)
 
 
-def main(expression, threads, gnfs):
+def main(expression, threads, gnfs, cofactor):
     expression = expression.strip()
     if gnfs and all(c.isdecimal() for c in expression):
         number = expression
@@ -137,12 +137,14 @@ def main(expression, threads, gnfs):
     if threads:
         cfg['tasks.threads'] = threads
 
+    cfg['cofactor'] = cofactor if cofactor != 0 else number
+
     dir = "cado_nfs"
     os.makedirs(dir, exist_ok=True)
     os.chdir(dir)
     dodc_cado_path = Path(os.getcwd())
     if not gnfs:
-        write_poly(poly_filename, k, a, n, d, expression)
+        write_poly(poly_filename, k, a, n, d, expression, cfg)
         write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, expression, cfg)
     write_script(sh_filename, param_filename, dodc_cado_path, cfg, gnfs, number)
 
@@ -168,19 +170,24 @@ def main(expression, threads, gnfs):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python dodc_cado_nfs.py <expression> [-t <threads>] [-g]")
+        print("Usage: python dodc_cado_nfs.py <expression> [-t <threads>] [-c cofactor] [-g]")
         print("  <expression>\tAn expression on the form <k*a^n+d>, <k*a^n-d>, or an integer.")
         print("    E.g. 17*2^453+1")
         print("  -t <threads>\tThe max number of threads to use.")
+        print("  -c <cofactor>\tThe composite to factor for SNFS.")
         print("  -g\tUse GNFS.")
         sys.exit(1)
 
     threads = None
     gnfs = False
+    cofactor = 0
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-t" and i + 1 < len(sys.argv):
             threads = int(sys.argv[i + 1])
+            i += 2
+        elif sys.argv[i] == "-c" and i + 1 < len(sys.argv):
+            cofactor = int(sys.argv[i + 1])
             i += 2
         elif sys.argv[i] == "-g":
             gnfs = True
@@ -189,4 +196,4 @@ if __name__ == "__main__":
             expression = sys.argv[i]
             i += 1
 
-    main(expression, threads, gnfs)
+    main(expression, threads, gnfs, cofactor)
