@@ -62,8 +62,8 @@ tasks.polyselect.adrange = 0
 # Sieving parameters
 tasks.sieve.mfb0 = 52
 tasks.sieve.mfb1 = 52
-tasks.sieve.lambda0 = 2.1
-tasks.sieve.lambda1 = 2.2
+#tasks.sieve.lambda0 = 2.1  # Better to let cado choose
+#tasks.sieve.lambda1 = 2.2  # Better to let cado choose
 tasks.I = 12
 tasks.qmin = 2000000
 tasks.sieve.qrange = 5000
