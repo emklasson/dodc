@@ -176,12 +176,31 @@ int submit_factors( vector<pair<factor,bool>> &factors ) {
 	ifstream f( cfg["wgetresultfile"].c_str() );
 	string	line;
 	string prefix = "JSONResults:";
+	int new_count = 0;
 	while (getline(f, line)) {
 		if (line.substr(0, prefix.size()) == prefix) {
 			// cout << line << endl;
 			for (auto f : factors) {
-				f.second = line.find(f.first.factorline) == line.npos;
+				auto pos = line.find(f.first.factorline);
+				f.second = pos == line.npos;
 				successes += f.second ? 0 : 1;
+				if (pos != line.npos) {
+					string result = "";
+					string tag = "\"result\":\"";
+					pos = line.find(tag, pos);
+					if (pos != line.npos) {
+						pos += tag.size();
+						auto pos2 = line.find("\"", pos);
+						if (pos2 != line.npos) {
+							result = line.substr(pos, pos2 - pos);
+							if (result == "new") {
+								++new_count;
+							} else if (result != "old" && result != "") {
+								cout << f.first.factorline << " : " << result << endl;
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -189,6 +208,8 @@ int submit_factors( vector<pair<factor,bool>> &factors ) {
 	f.close();
 	if( !successes ) {
 		cout << "ERROR! Couldn't parse submission result." << endl;
+	} else {
+		cout << new_count << " new factor" << (new_count > 1 ? "s." : ".") << endl;
 	}
 
 	return successes;
