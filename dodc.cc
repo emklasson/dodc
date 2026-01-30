@@ -889,8 +889,12 @@ void set_priority( int priority = 0 ) {
 		THREAD_PRIORITY_NORMAL, THREAD_PRIORITY_ABOVE_NORMAL, THREAD_PRIORITY_HIGHEST };
 	SetPriorityClass( GetCurrentProcess(), aprio[priority] );
 	SetThreadPriority( GetCurrentThread(), atprio[0] );
-#else	//linux
+#else	//linux or macOS
 	setpriority( PRIO_PROCESS, 0, 20 - 10 * priority );
+
+	// macOS:
+	// setpriority( PRIO_DARWIN_PROCESS, 0, PRIO_DARWIN_BG ); // Only schedules on efficiency cores.
+	// pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);
 #endif
 }
 
