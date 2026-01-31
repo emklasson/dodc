@@ -172,9 +172,8 @@ int submit_factors( vector<pair<factor,bool>> &factors ) {
 		;
 	remove( cfg["wgetresultfile"].c_str() );
 
-	cout << "Sending factors to server..." << flush;
+	cout << "Sending factors to server..." << endl;
 	int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
-	cout << " Done." << endl;
 	if( r != 0 ) {
 		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
 	}
@@ -249,9 +248,8 @@ bool submit_factor( string factorline, string method, string args, bool retryatt
 			;
 		remove( cfg["wgetresultfile"].c_str() );
 
-		cout << "Sending factor to server..." << flush;
+		cout << "Sending factor to server..." << endl;
 		int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
-		cout << " Done." << endl;
 		if( r != 0 ) {
 			cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
 			failure = true;
@@ -324,13 +322,12 @@ bool download_composites() {
 		ss >> comma;
 	}
 
-	cout << "Downloading composites..." << flush;
+	cout << "Downloading composites..." << endl;
 	int r = system( ( cfg["wgetcmd"]
 			+ " -q --cache=off --output-document=\""
 			+ cfg["compositefile"]
 			+ ( cfg["use_gzip"] == "yes" ? ".gz" : "" )
 			+ "\" \"" + url + "\"" ).c_str() );
-	cout << " Done." << endl;
 
 	bool probablyerror = false;
 	if( r != 0 ) {
