@@ -740,12 +740,12 @@ void add_wu_result( workunit_t * pwu ) {
 	wu_result_queue.push( *pwu );
 }
 
-// Returns true if a found factor was handled.
-bool process_wu_results() {
+// Returns # found factorisations.
+int process_wu_results() {
 	lock_guard<mutex>	lock( hmutex_wu_result );
 
-	bool found = false;
-	if( wu_result_queue.size() ) {
+	int found = 0;
+	while( wu_result_queue.size() ) {
 		workunit_t & wu = wu_result_queue.front();
 		workunit_result & result = wu.result;
 		stringstream ss( wu.result.factor );
@@ -771,14 +771,16 @@ bool process_wu_results() {
 			}
 		}
 
+		wu_result_queue.pop();
+		++found;
+	}
+
+	if (found > 0) {
 		if (submit_interval_passed()) {
 			process_unsubmitted_factors(true);
 		} else {
 			cout << "Factor(s) saved in " << cfg["submitfailurefile"] << " for now." << endl;
 		}
-
-		wu_result_queue.pop();
-		found = true;
 	}
 
 	return found;
@@ -955,8 +957,10 @@ int main( int argc, char ** argv ) {
 			}
 
 			do_workunit( line, enhanced, expr );
-			while( process_wu_results() ) {
-				cout << "#factors found: " << ++totalfactors << "    " << endl;
+			int new_factors = process_wu_results();
+			if( new_factors > 0 ) {
+				totalfactors += new_factors;
+				cout << "#factors found: " << totalfactors << "    " << endl;
 			}
 
 			process_unsubmitted_factors( false );
@@ -990,16 +994,11 @@ int main( int argc, char ** argv ) {
 		cout << "Waiting for " << n << " worker " << pluralise("thread", n)
 			<< " to finish...    \r" << flush;
 		this_thread::sleep_for(chrono::seconds(5));
-		while( process_wu_results() ) {
-			cout << endl << "#factors found: " << ++totalfactors << endl;
-		}
-
-		process_unsubmitted_factors( false );
+		totalfactors += process_wu_results();
 	}
 
-	while( process_wu_results() ) {
-		cout << endl << "#factors found: " << ++totalfactors << endl;
-	}
+	totalfactors += process_wu_results();
+	cout << endl << "#factors found: " << totalfactors << endl;
 
 	//do one last valiant attempt to submit any unsubmitted factors
 	process_unsubmitted_factors( true );
