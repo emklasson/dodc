@@ -232,66 +232,6 @@ bool submit_interval_passed() {
 	return false;
 }
 
-bool submit_factor( string factorline, string method, string args, bool retryattempt, bool forceattempt ) {
-	bool failure = false;
-	bool submit = true;
-	if( !submit_interval_passed() && !forceattempt ) {
-		submit = false;
-	}
-
-	if (submit) {
-		string	postdata = "name=" + urlencode( cfg["name"] )
-			+ "&method=" + urlencode( method )
-			+ "&factors=" + urlencode( factorline )
-			+ "&args=" + urlencode( args )
-			+ "&submitter=" + urlencode( "dodc " + version )
-			;
-		remove( cfg["wgetresultfile"].c_str() );
-
-		cout << "Sending factor to server..." << endl;
-		int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
-		if( r != 0 ) {
-			cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
-			failure = true;
-		}
-
-		ifstream f( cfg["wgetresultfile"].c_str() );
-		string	line;
-		bool	found = false;
-		while( getline( f, line ) ) {
-			size_t pos = line.find( factorline );
-			if( pos != line.npos ) {
-				if( ( pos = line.find( "</td><td>", pos ) ) != line.npos ) {
-					pos += string( "</td><td>" ).size();
-					size_t last = line.find( "</td>", pos + 1 );
-					if( last != line.npos ) {
-						found = true;
-						cout << "Result: " << line.substr( pos, last - pos ) << endl;
-						break;
-					}
-				}
-			}
-		}
-
-		f.close();
-		if( !found ) {
-			cout << "ERROR! Couldn't parse submission result." << endl;
-			failure = true;
-		}
-	}
-
-	if( !submit || failure ) {
-		if( !retryattempt ) {
-			dump_factor( factor( factorline, method, args ) );
-			cout << "Your factor has been saved in " << cfg["submitfailurefile"] << " for now." << endl;
-		}
-
-		return false;
-	}
-
-	return true;
-}
-
 bool report_work(string cmd) {
 	++reporters_running;
 	cout << "Reporting completed work... Thanks!" << endl;
