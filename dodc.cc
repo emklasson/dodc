@@ -137,6 +137,10 @@ string scientify( string n ) {
 	return n + "e" + tostring( e );
 }
 
+string pluralise(string singular, int count) {
+	return singular + (count > 1 ? "s" : "");
+}
+
 bool dump_factor( factor f ) {
 	ofstream	fout( cfg["submitfailurefile"].c_str(), ios::app );
 	fout << "#method(" << f.method << ")" << "args(" << f.args << ")" << endl;
@@ -209,7 +213,7 @@ int submit_factors( vector<pair<factor,bool>> &factors ) {
 	if( !successes ) {
 		cout << "ERROR! Couldn't parse submission result." << endl;
 	} else {
-		cout << new_count << " new factor" << (new_count > 1 ? "s." : ".") << endl;
+		cout << new_count << " new " << pluralise("factor", new_count) << "." << endl;
 	}
 
 	return successes;
@@ -488,7 +492,7 @@ void adjust_worker_threads(int from, int to) {
 	} else {
 		// Check what thread numbers are free and use the lowest ones.
 		int count = to - from;
-		cout << "Adding " << count << " worker thread" << (count > 1 ? "s." : ".") << endl;
+		cout << "Adding " << count << " worker " << pluralise("thread", count) << "." << endl;
 		lock_guard<mutex> lock( hmutex_wu );
 		for (int n = 1; n <= to && from < to; ++n) {
 			if (!used_thread_numbers.contains(n)) {
