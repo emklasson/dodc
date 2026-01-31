@@ -173,7 +173,11 @@ int submit_factors( vector<pair<factor,bool>> &factors ) {
 	remove( cfg["wgetresultfile"].c_str() );
 
 	cout << "Sending factors to server..." << endl;
-	int r = system( ( cfg["wgetcmd"] + " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" --post-data=\"" + postdata + "\" " + cfg["submiturl"] ).c_str() );
+	int r = system( ( cfg["wgetcmd"]
+		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
+		+ " -q --cache=off --output-document=\"" + cfg["wgetresultfile"]
+		+ "\" --post-data=\"" + postdata + "\" "
+		+ cfg["submiturl"] ).c_str() );
 	if( r != 0 ) {
 		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
 	}
@@ -264,10 +268,11 @@ bool download_composites() {
 
 	cout << "Downloading composites..." << endl;
 	int r = system( ( cfg["wgetcmd"]
-			+ " -q --cache=off --output-document=\""
-			+ cfg["compositefile"]
-			+ ( cfg["use_gzip"] == "yes" ? ".gz" : "" )
-			+ "\" \"" + url + "\"" ).c_str() );
+		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
+		+ " -q --cache=off --output-document=\""
+		+ cfg["compositefile"]
+		+ ( cfg["use_gzip"] == "yes" ? ".gz" : "" )
+		+ "\" \"" + url + "\"" ).c_str() );
 
 	bool probablyerror = false;
 	if( r != 0 ) {
@@ -489,7 +494,7 @@ bool init_args() {
 				"use_gzip", "sort", "order", "compositefile", "compositeurl", "submiturl",
 				"manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
 				"wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
-				"worker_threads", "submitinterval"
+				"worker_threads", "submitinterval", "internet_timeout"
 	};
 	string optargs[] = { "ecmargs", "fallback", "automethod", "less_spam" };
 	for( int j = 0; j < sizeof( reqargs ) / sizeof( string ); ++j ) {
@@ -917,6 +922,7 @@ int main( int argc, char ** argv ) {
 				+ "&b1=" + urlencode( cfg["b1"] )
 				+ "&curves=" + urlencode( cfg["curves"] );
 			string cmd = cfg["wgetcmd"]
+				+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
 				+ " -q --cache=off --output-document=\""
 				+ cfg["wgetresultfile"]
 				+ "\" \"" + url + "\"";
