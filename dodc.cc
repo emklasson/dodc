@@ -41,6 +41,8 @@ queue<int> thread_numbers;
 set<int>  used_thread_numbers;	// Thread numbers used by the worker threads.
 queue<workunit_t> wu_result_queue;
 
+atomic<int> reporters_running = 0; // # report_work threads running.
+
 map<string,string>	cfg;	//configuration data from .ini file and cmdline
 map<string,bool>	okargs;	//allowed configuration arguments. <name,required>
 
@@ -292,26 +294,15 @@ bool submit_factor( string factorline, string method, string args, bool retryatt
 	return true;
 }
 
-bool report_work() {
-	string	url = cfg["reporturl"]
-		+ "?method=" + urlencode( cfg["method"] )
-		+ "&numbers=" + urlencode( cfg["numbers"] )
-		+ "&nmin=" + urlencode( cfg["nmin"] )
-		+ "&nmax=" + urlencode( cfg["nmax"] )
-		+ "&b1=" + urlencode( cfg["b1"] )
-		+ "&curves=" + urlencode( cfg["curves"] )
-		;
-	cout << "Reporting completed work..." << flush;
-	int r = system( ( cfg["wgetcmd"]
-			+ " -q --cache=off --output-document=\""
-			+ cfg["wgetresultfile"]
-			+ "\" \"" + url + "\"" ).c_str() );
-	cout << " Done. Thanks!" << endl;
-
+bool report_work(string cmd) {
+	++reporters_running;
+	cout << "Reporting completed work... Thanks!" << endl;
+	int r = system( cmd.c_str() );
 	if( r != 0 ) {
-		cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
+		cout << "WARNING: wget returned " << r << " while reporting work. There was probably an error." << endl;
 	}
 
+	--reporters_running;
 	return r == 0;
 }
 
@@ -977,7 +968,19 @@ int main( int argc, char ** argv ) {
 		fin.close();
 		cout << "#factors found: " << totalfactors << "    " << endl;
 		if( cfg["reportwork"] == "yes" ) {
-			report_work();
+			string url = cfg["reporturl"]
+				+ "?method=" + urlencode( cfg["method"] )
+				+ "&numbers=" + urlencode( cfg["numbers"] )
+				+ "&nmin=" + urlencode( cfg["nmin"] )
+				+ "&nmax=" + urlencode( cfg["nmax"] )
+				+ "&b1=" + urlencode( cfg["b1"] )
+				+ "&curves=" + urlencode( cfg["curves"] );
+			string cmd = cfg["wgetcmd"]
+				+ " -q --cache=off --output-document=\""
+				+ cfg["wgetresultfile"]
+				+ "\" \"" + url + "\"";
+			thread t(report_work, cmd);
+			t.detach();
 		}
 
 		//increase b1
@@ -985,9 +988,11 @@ int main( int argc, char ** argv ) {
 		cout << "Increasing B1 to " << cfg["b1"] << endl;
 	} while( cfg["loop"] == "yes" );
 
-	cout << "Waiting for worker threads to finish...";
 	while( thread_numbers.size() != toint( cfg["worker_threads"] ) ) {
-		this_thread::sleep_for( chrono::milliseconds( 1000 ) );
+		int n = toint( cfg["worker_threads"] ) - thread_numbers.size();
+		cout << "Waiting for " << n << " worker " << pluralise("thread", n)
+			<< " to finish...    \r" << flush;
+		this_thread::sleep_for(chrono::seconds(5));
 		while( process_wu_results() ) {
 			cout << endl << "#factors found: " << ++totalfactors << endl;
 		}
@@ -995,16 +1000,21 @@ int main( int argc, char ** argv ) {
 		process_unsubmitted_factors( false );
 	}
 
-	cout << endl;
 	while( process_wu_results() ) {
-		cout << "#factors found: " << ++totalfactors << endl;
+		cout << endl << "#factors found: " << ++totalfactors << endl;
 	}
 
 	//do one last valiant attempt to submit any unsubmitted factors
 	process_unsubmitted_factors( true );
 
+	while (reporters_running > 0) {
+		cout << "Waiting for " << reporters_running << " work reporting "
+			<< pluralise("thread", reporters_running) << " to finish...    \r" << flush;
+		this_thread::sleep_for(chrono::seconds(5));
+	}
+
 	remove( cfg["wgetresultfile"].c_str() );
 	remove( cfg["ecmresultfile"].c_str() );
 
-	cout << "All done! Exiting." << endl;
+	cout << endl << "All done! Exiting." << endl;
 }
