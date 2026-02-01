@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <spawn.h>
 #include "dodc.h"
 using namespace std;
 
@@ -17,20 +16,10 @@ bool do_workunit_cado_nfs (workunit_t & wu) {
         wu.cmdline = "./dodc_cado_nfs.py -g '" + wu.inputnumber + "' > " + wu.tempfile;
     }
 
-    pid_t pid;
-    posix_spawnp(
-        &pid,
-        "/bin/sh",
-        nullptr,
-        nullptr,
-        const_cast<char* const*> (array<const char*, 4>{
-            "sh",
-            "-c",
-            wu.cmdline.c_str(),
-            nullptr
-        }.data()),
-        nullptr);
-    waitpid(pid, nullptr, 0);
+	if (!spawn_and_wait(wu.cmdline).first) {
+        cout << "ERROR: Failed spawning cado-nfs.\n";
+		return false;
+	}
 
     string tag = "factors: ";
 	string line;

@@ -282,14 +282,18 @@ bool submit_interval_passed() {
 
 bool report_work(string cmd) {
 	++reporters_running;
-	cout << "Reporting completed work... Thanks!" << endl;
-	int r = system( cmd.c_str() );
-	if( r != 0 ) {
-		cout << "WARNING: wget returned " << r << " while reporting work. There was probably an error." << endl;
+	cout << "Reporting completed work... Thanks!\n";
+	auto [success, exit_code] = spawn_and_wait(cmd);
+
+	if (success && exit_code != 0) {
+		success = false;
+		cout << format("WARNING: Wget returned {} while reporting work. There was probably an error.\n", exit_code);
+	} else if (!success) {
+		cout << "ERROR: Couldn't report work.\n";
 	}
 
 	--reporters_running;
-	return r == 0;
+	return success;
 }
 
 bool download_composites() {

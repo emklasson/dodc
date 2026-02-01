@@ -20,20 +20,10 @@ bool do_workunit_gmp_ecm( workunit_t & wu ) {
 	// system( ( "echo " + inputnumber + " | " + cfg["ecmcmd"] + " -c " + cfg["curves"] + " " + cfg["ecmargs"] + " " + cfg["b1"] + " > " + cfg["ecmresultfile"] ).c_str() );
 	// system( wu.cmdline.c_str() );
 
-	pid_t pid;
-	posix_spawnp(
-		&pid,
-		"/bin/sh",
-		nullptr,
-		nullptr,
-		const_cast<char* const*> (array<const char*, 4>{
-			"sh",
-			"-c",
-			wu.cmdline.c_str(),
-			nullptr
-		}.data()),
-		nullptr);
-	waitpid( pid, nullptr, 0 );
+	if (!spawn_and_wait(wu.cmdline).first) {
+        cout << "ERROR: Failed spawning ecm.\n";
+		return false;
+	}
 
 	//ifstream ftmp( cfg["ecmresultfile"].c_str() );
 	ifstream ftmp( wu.tempfile.c_str() );

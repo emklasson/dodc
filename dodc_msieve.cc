@@ -8,7 +8,6 @@
 #include <vector>
 #include <map>
 #include <set>
-#include <spawn.h>
 #include "dodc.h"
 using namespace std;
 
@@ -22,20 +21,11 @@ bool do_workunit_msieve( workunit_t & wu ) {
 		//system( ( "msieve -l " + wu.tempfile + /*" " + args*/ + " " + wu.inputnumber ).c_str() );
 		// system( ( "msieve -t 1 -p -l " + wu.tempfile + ".log -s " + wu.tempfile + ".dat" /*+ " " + args*/ + " " + wu.inputnumber ).c_str() );
 		wu.cmdline = "msieve -t 1 -p -l " + wu.tempfile + ".log -s " + wu.tempfile + ".dat" /*+ " " + args*/ + " " + wu.inputnumber;
-		pid_t pid;
-		posix_spawnp(
-			&pid,
-			"/bin/sh",
-			nullptr,
-			nullptr,
-			const_cast<char* const*> (array<const char*, 4>{
-				"sh",
-				"-c",
-				wu.cmdline.c_str(),
-				nullptr
-			}.data()),
-			nullptr);
-		waitpid( pid, nullptr, 0 );
+
+		if (!spawn_and_wait(wu.cmdline).first) {
+	        cout << "ERROR: Failed spawning msieve.\n";
+			return false;
+		}
 
 		//ifstream ftmp( "msieve.log" );
 		ifstream ftmp( ( wu.tempfile + ".log" ).c_str() );
