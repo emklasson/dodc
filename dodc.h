@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <spawn.h>
 using namespace std;
 
 const string version = "v1.36";
@@ -52,6 +53,7 @@ bool isnumber( string s );
 char tohex( int n );
 string urlencode( string in );
 string scientify( string n );
-
+pair<int, pid_t> spawn(string cmdline);
+pair<bool, int> spawn_and_wait(string cmdline);
 
 #endif
