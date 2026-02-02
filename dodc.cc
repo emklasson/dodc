@@ -262,7 +262,7 @@ bool download_composites() {
 		+ "&order=" + urlencode( cfg["order"] )
 		+ "&gzip=" + urlencode( cfg["use_gzip"] )
 		+ "&recommendedwork=" + urlencode( cfg["recommendedwork"] )
-		;
+		+ (cfg["exclude_reservations"] == "yes" ? "&name=" + urlencode( cfg["name"] ) : "");
 	stringstream	ss( cfg["numbers"] );
 	int	k;
 	char	plusminus,comma;
@@ -492,7 +492,8 @@ bool init_args() {
 				"use_gzip", "sort", "order", "compositefile", "compositeurl", "submiturl",
 				"manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
 				"wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
-				"worker_threads", "submitinterval", "internet_timeout", "pcore_workers"
+				"worker_threads", "submitinterval", "internet_timeout", "pcore_workers",
+				"exclude_reservations"
 	};
 	string optargs[] = { "ecmargs", "fallback", "automethod", "less_spam" };
 	for( int j = 0; j < sizeof( reqargs ) / sizeof( string ); ++j ) {
