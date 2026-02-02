@@ -20,6 +20,11 @@ bool do_workunit_gmp_ecm( workunit_t & wu ) {
 	// system( ( "echo " + inputnumber + " | " + cfg["ecmcmd"] + " -c " + cfg["curves"] + " " + cfg["ecmargs"] + " " + cfg["b1"] + " > " + cfg["ecmresultfile"] ).c_str() );
 	// system( wu.cmdline.c_str() );
 
+	if (wu.schedule_bg) {
+		// setpriority( PRIO_DARWIN_PROCESS, 0, PRIO_DARWIN_BG ); // Only schedules on efficiency cores.
+		wu.cmdline = "./schedule_bg '" + wu.cmdline + "'";
+	}
+
 	if (!spawn_and_wait(wu.cmdline).first) {
         cout << "ERROR: Failed spawning ecm.\n";
 		return false;

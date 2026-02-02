@@ -492,7 +492,7 @@ bool init_args() {
 				"use_gzip", "sort", "order", "compositefile", "compositeurl", "submiturl",
 				"manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
 				"wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
-				"worker_threads", "submitinterval", "internet_timeout"
+				"worker_threads", "submitinterval", "internet_timeout", "pcore_workers"
 	};
 	string optargs[] = { "ecmargs", "fallback", "automethod", "less_spam" };
 	for( int j = 0; j < sizeof( reqargs ) / sizeof( string ); ++j ) {
@@ -812,6 +812,8 @@ void do_workunit( string inputnumber, bool enhanced, string expr ) {
 		wu.handler = do_workunit_gmp_ecm;
 		//foundfactor = do_workunit_gmp_ecm( wu );
 	}
+
+	wu.schedule_bg = wu.threadnumber > toint(cfg["pcore_workers"]);
 
 	// _beginthread( process_workunit, 0, pwu );
 	thread t( process_workunit, pwu );

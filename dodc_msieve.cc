@@ -22,6 +22,11 @@ bool do_workunit_msieve( workunit_t & wu ) {
 		// system( ( "msieve -t 1 -p -l " + wu.tempfile + ".log -s " + wu.tempfile + ".dat" /*+ " " + args*/ + " " + wu.inputnumber ).c_str() );
 		wu.cmdline = "msieve -t 1 -p -l " + wu.tempfile + ".log -s " + wu.tempfile + ".dat" /*+ " " + args*/ + " " + wu.inputnumber;
 
+		if (wu.schedule_bg) {
+			// setpriority( PRIO_DARWIN_PROCESS, 0, PRIO_DARWIN_BG ); // Only schedules on efficiency cores.
+			wu.cmdline = "./schedule_bg '" + wu.cmdline + "'";
+		}
+
 		if (!spawn_and_wait(wu.cmdline).first) {
 	        cout << "ERROR: Failed spawning msieve.\n";
 			return false;
