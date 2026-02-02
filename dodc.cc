@@ -903,12 +903,7 @@ int main( int argc, char ** argv ) {
 			}
 
 			do_workunit( line, enhanced, expr );
-			int new_factors = process_wu_results();
-			if( new_factors > 0 ) {
-				totalfactors += new_factors;
-				cout << "#factors found: " << totalfactors << "    " << endl;
-			}
-
+			totalfactors += process_wu_results();
 			process_unsubmitted_factors( false );
 		}
 
