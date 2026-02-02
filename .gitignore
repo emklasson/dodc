@@ -7,4 +7,5 @@ msieve*.log
 msieve*.dat
 dodc_cado_snfs_*
 dodc_cado_nfs_*
+schedule_bg
 */*
