@@ -3,7 +3,7 @@
 
 #include <map>
 #include <string>
-#include <spawn.h>
+#include "multiprocessing.h"
 using namespace std;
 
 const string version = "v1.36";
@@ -32,6 +32,7 @@ struct workunit_t {
 	string	cmdline;
 	string	method;
 	string	b1;
+	bool	schedule_bg;	// Schedule work in Background process? (macOS)
 	workunit_result result;
 	bool (*handler)( workunit_t & wu );
 
@@ -53,7 +54,5 @@ bool isnumber( string s );
 char tohex( int n );
 string urlencode( string in );
 string scientify( string n );
-pair<int, pid_t> spawn(string cmdline);
-pair<bool, int> spawn_and_wait(string cmdline);
 
 #endif
