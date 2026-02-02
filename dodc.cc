@@ -34,13 +34,11 @@ using namespace std;
 // #include <process.h>
 
 counting_semaphore hsem_wu{0};
-mutex hmutex_wu;	// Controls access to thread_numbers and used_thread_numbers.
+mutex hmutex_wu;	// Controls access to running_worker_threads.
 mutex hmutex_wu_result;
 
-queue<int> thread_numbers;
-set<int>  used_thread_numbers;	// Thread numbers used by the worker threads.
 queue<workunit_t> wu_result_queue;
-
+set<int> running_worker_threads;  // Thread numbers used by running workers.
 atomic<int> reporters_running = 0; // # report_work threads running.
 
 map<string,string>	cfg;	//configuration data from .ini file and cmdline
@@ -49,6 +47,8 @@ map<string,bool>	okargs;	//allowed configuration arguments. <name,required>
 string	okmethods[] = { "ECM", "P-1", "P+1", "MSIEVEQS", "CADO_SNFS", "CADO_GNFS" };//, "GGNFS_SNFS", "YAFU_QS" };	//supported methods
 
 extern char **environ;	// For posix_spawnp.
+
+int process_wu_results();
 
 string toupper( string in ) {
 	string s = in;
@@ -462,27 +462,19 @@ bool parse_cmdline( int argc, char ** argv ) {
 void adjust_worker_threads(int from, int to) {
 	if (from > to) {
 		for (int j = from; j > to; --j) {
-			cout << "Waiting to remove a finished worker thread..." << endl;
+			cout << format("Waiting for {} worker {} to finish...\n",
+				j - to, pluralise("thread", j - to));
 			hsem_wu.acquire();
-			lock_guard<mutex> lock( hmutex_wu );
-			int n = thread_numbers.front();
-			thread_numbers.pop();
-			used_thread_numbers.erase(n);
-			cout << "Removing worker thread " << n << endl;
+		}
+		if (!to) {
+			// Process results before idling in case user aborts.
+			process_wu_results();
+			cout << "No workers left. Idling...\n";
 		}
 	} else {
-		// Check what thread numbers are free and use the lowest ones.
 		int count = to - from;
 		cout << "Adding " << count << " worker " << pluralise("thread", count) << "." << endl;
-		lock_guard<mutex> lock( hmutex_wu );
-		for (int n = 1; n <= to && from < to; ++n) {
-			if (!used_thread_numbers.contains(n)) {
-				thread_numbers.push(n);
-				used_thread_numbers.insert(n);
-				hsem_wu.release();
-				++from;
-			}
-		}
+		hsem_wu.release(count);
 	}
 }
 
@@ -702,7 +694,7 @@ int init_composites() {
 void free_workunit( workunit_t * pwu ) {
 	lock_guard<mutex>	lock( hmutex_wu );
 
-	thread_numbers.push( pwu->threadnumber );
+	running_worker_threads.erase(pwu->threadnumber);
 	delete pwu;
 	hsem_wu.release();
 }
@@ -714,15 +706,16 @@ workunit_t * get_workunit() {
 	}
 
 	lock_guard<mutex>	lock( hmutex_wu );
-
-	if( !thread_numbers.size() ) {
-		cout << "ERROR: couldn't get a new thread number!";
-		exit( 0 );
-	}
-
 	workunit_t * pwu = new workunit_t;
-	pwu->threadnumber = thread_numbers.front();
-	thread_numbers.pop();
+
+	// Use the lowest free thread number.
+	for (int n = 1; ; ++n) {
+		if (!running_worker_threads.contains(n)) {
+			pwu->threadnumber = n;
+			running_worker_threads.insert(n);
+			break;
+		}
+	}
 
 	return pwu;
 }
@@ -983,28 +976,22 @@ int main( int argc, char ** argv ) {
 		cout << "Increasing B1 to " << cfg["b1"] << endl;
 	} while( cfg["loop"] == "yes" );
 
-	while( thread_numbers.size() != toint( cfg["worker_threads"] ) ) {
-		int n = toint( cfg["worker_threads"] ) - thread_numbers.size();
-		cout << "Waiting for " << n << " worker " << pluralise("thread", n)
-			<< " to finish...    \r" << flush;
-		this_thread::sleep_for(chrono::seconds(5));
-		totalfactors += process_wu_results();
-	}
+	adjust_worker_threads(toint(cfg["worker_threads"]), 0);
 
 	totalfactors += process_wu_results();
-	cout << endl << "#factors found: " << totalfactors << endl;
+	cout << "#factors found: " << totalfactors << endl;
 
 	//do one last valiant attempt to submit any unsubmitted factors
 	process_unsubmitted_factors( true );
 
 	while (reporters_running > 0) {
 		cout << "Waiting for " << reporters_running << " work reporting "
-			<< pluralise("thread", reporters_running) << " to finish...    \r" << flush;
+			<< pluralise("thread", reporters_running) << " to finish..." << endl;
 		this_thread::sleep_for(chrono::seconds(5));
 	}
 
 	remove( cfg["wgetresultfile"].c_str() );
 	remove( cfg["ecmresultfile"].c_str() );
 
-	cout << endl << "All done! Exiting." << endl;
+	cout << "All done! Exiting." << endl;
 }
