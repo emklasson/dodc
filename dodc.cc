@@ -920,8 +920,9 @@ int main(int argc, char **argv) {
 				+ "&curves=" + urlencode(cfg["curves"]);
             string cmd = cfg["wgetcmd"]
 				+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
-				+ " -q --cache=off --output-document=\"" + cfg["wgetresultfile"] + "\" \""
-				+ url + "\"";
+				+ " -q --cache=off"
+				+ " --output-document=\"" + cfg["wgetresultfile"] + "_report\""
+				+ " \"" + url + "\"";
             thread t(report_work, cmd);
             t.detach();
         }
