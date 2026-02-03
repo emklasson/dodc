@@ -17,6 +17,7 @@ TODO: specifying "1e8" etc as B1 only works because gmp-ecm parses it. dodc does
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <queue>
 #include <random>
 #include <semaphore>
