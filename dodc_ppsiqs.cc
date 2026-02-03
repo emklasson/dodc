@@ -1,20 +1,20 @@
-//isn't multithread safe
+// isn't multithread safe
 
-//#include <iostream>
-//#include <fstream>
-//#include <sstream>
-//#include <algorithm>
-//#include <string>
-//#include <cctype>
-//#include <ctime>
-//#include <vector>
-//#include <map>
-//#include <set>
-//#include "dodc.h"
-//using namespace std;
+// #include <iostream>
+// #include <fstream>
+// #include <sstream>
+// #include <algorithm>
+// #include <string>
+// #include <cctype>
+// #include <ctime>
+// #include <vector>
+// #include <map>
+// #include <set>
+// #include "dodc.h"
+// using namespace std;
 //
 ////returns true if a factor was found
-//bool do_workunit_ppsiqs( string inputnumber, workunit_result & result ) {
+// bool do_workunit_ppsiqs( string inputnumber, workunit_result & result ) {
 //	string	line;
 //	bool foundfactor = false;
 //	//system( ( "echo " + inputnumber + " | " + cfg["ecmcmd"] + " -c " + cfg["curves"] + " " + cfg["ecmargs"] + " " + cfg["b1"] + " > " + cfg["ecmresultfile"] ).c_str() );
@@ -36,4 +36,4 @@
 //	}
 //	ftmp.close();
 //	return foundfactor;
-//}
+// }

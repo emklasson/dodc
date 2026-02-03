@@ -1,8 +1,8 @@
 #if !defined(__multiprocessing_h_included)
 #define __multiprocessing_h_included
 
-#include <string>
 #include <spawn.h>
+#include <string>
 using namespace std;
 
 pair<int, pid_t> spawn(string cmdline);
