@@ -10,6 +10,7 @@ TODO: specifying "1e8" etc as B1 only works because gmp-ecm parses it. dodc does
 #include "dodc_cado_nfs.h"
 #include "dodc_gmp_ecm.h"
 #include "dodc_msieve.h"
+#include "multiprocessing.h"
 #include <algorithm>
 #include <cctype>
 #include <ctime>
