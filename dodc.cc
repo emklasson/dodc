@@ -149,7 +149,6 @@ bool dump_factor(factor f) {
     ofstream fout(cfg["submitfailurefile"].c_str(), ios::app);
     fout << "#method(" << f.method << ")" << "args(" << f.args << ")" << endl;
     fout << f.factorline << endl;
-    fout.close();
     return true;
 }
 
@@ -217,7 +216,6 @@ int submit_factors(vector<pair<factor, bool>> &factors) {
         }
     }
 
-    f.close();
     if (!successes) {
         cout << "ERROR! Couldn't parse submission result." << endl;
     } else {
@@ -466,7 +464,6 @@ bool read_inifile(string fname, bool silent_fail = false) {
         cfg_set("ini", arg, val);
     }
 
-    f.close();
     return true;
 }
 
@@ -581,8 +578,6 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
     if (cfg["autosubmit"] == "yes") {
         dump_factor(factor(factorline.str(), method, args));
     }
-
-    fout.close();
 }
 
 // returns the number of composites in <compositefile>
@@ -605,8 +600,6 @@ int init_composites() {
                 cfg_set("recommended work", fn, val);
             }
         }
-
-        f.close();
     }
 
     ifstream f(cfg["compositefile"].c_str());
@@ -635,16 +628,12 @@ int init_composites() {
 
             fout << v[j].first << endl;
         }
-
-        fout.close();
     } else {
         while (getline(f, line)) {
             if (line.substr(0, 1) != "#") {
                 ++cnt;
             }
         }
-
-        f.close();
     }
 
     return cnt;
@@ -910,7 +899,6 @@ int main(int argc, char **argv) {
             process_unsubmitted_factors(false);
         }
 
-        fin.close();
         cout << "#factors found: " << totalfactors << "    " << endl;
         if (cfg["reportwork"] == "yes") {
             string url = cfg["reporturl"]

@@ -41,6 +41,5 @@ bool do_workunit_cado_nfs(workunit_t &wu) {
         }
     }
 
-    ftmp.close();
     return wu.result.factor != "";
 }

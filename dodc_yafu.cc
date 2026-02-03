@@ -29,7 +29,6 @@ bool do_workunit_yafu(workunit_t &wu) {
 
     ifstream fi(wu.tempfile.c_str());
     getline(fi, wu.result.factor); // can contain more than one factor, space-separated
-    fi.close();
 
     return wu.result.factor != "";
 }

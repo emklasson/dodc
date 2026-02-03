@@ -79,6 +79,6 @@ bool do_workunit_gmp_ecm(workunit_t &wu) {
             break;
         }
     }
-    ftmp.close();
+
     return foundfactor;
 }

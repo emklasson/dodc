@@ -57,7 +57,7 @@ bool do_workunit_msieve(workunit_t &wu) {
                 break;
             }
         }
-        ftmp.close();
     }
+
     return foundfactor;
 }
