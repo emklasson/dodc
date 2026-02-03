@@ -337,24 +337,13 @@ void process_unsubmitted_factors(bool forceattempt) {
         return;
     }
 
-    cout << "Trying to send your unsubmitted factors..." << endl;
     int succeeded = submit_factors(unsubmitted);
-
-    // int	succeeded = 0;
-    // for( vector<pair<factor,bool> >::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i ) {
-    // 	if( submit_factor( i->first.factorline, i->first.method, i->first.args, true, true ) ) {
-    // 		++succeeded;
-    // 		i->second = false;
-    // 	}
-    // }
 
     string failstring = "Please submit the factors in " + cfg["submitfailurefile"] + " manually\n"
 		+ "or wait and see if dodc manages to submit them automatically later.\n"
 		+ "Manual submit: " + cfg["manualsubmiturl"] + "\n";
 
     if (!succeeded) {
-        // none succeeded, just exit.
-        cout << "Didn't manage to submit any factor now either." << endl;
         cout << failstring;
         return;
     }
