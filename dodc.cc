@@ -166,24 +166,26 @@ int submit_factors(vector<pair<factor, bool>> &factors) {
 			+ format("#method({})args({})\n", factors[i].first.method, factors[i].first.args)
 			+ factors[i].first.factorline;
     }
+
+	string result_file = cfg["wgetresultfile"] + "_submit";
     string postdata = "name=" + urlencode(cfg["name"])
 		+ "&method=unknown"
 		+ "&factors=" + urlencode(factorlines)
 		+ "&args=unknown"
 		+ "&submitter=" + urlencode("dodc " + version);
-    remove(cfg["wgetresultfile"].c_str());
+    remove(result_file.c_str());
 
     cout << "Sending factors to server..." << endl;
     int r = system((cfg["wgetcmd"]
 		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
-		+ " -q --cache=off --output-document=\"" + cfg["wgetresultfile"]
+		+ " -q --cache=off --output-document=\"" + result_file
 		+ "\" --post-data=\"" + postdata + "\" "
 		+ cfg["submiturl"]).c_str());
     if (r != 0) {
         cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
     }
 
-    ifstream f(cfg["wgetresultfile"].c_str());
+    ifstream f(result_file);
     string line;
     string prefix = "JSONResults:";
     int new_count = 0;
