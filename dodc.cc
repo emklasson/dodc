@@ -87,9 +87,9 @@ int toint(string s) {
     return n;
 }
 
-uint64 touint64(string s) {
+uint_fast64_t touint64(string s) {
     stringstream ss(s);
-    uint64 n;
+    uint_fast64_t n;
     ss >> n;
     return n;
 }
@@ -763,8 +763,8 @@ int process_wu_results() {
 
             // Trial factor found factor if it's small.
             if (factor.size() <= 10) {
-                uint64 n = touint64(factor);
-                for (uint64 f = 3; f * f <= n; f += 2) {
+                auto n = touint64(factor);
+                for (uint_fast64_t f = 3; f * f <= n; f += 2) {
                     if (!(n % f)) {
                         found_factor(tostring(f), wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args);
                         do {

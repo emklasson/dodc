@@ -2,14 +2,11 @@
 #define __dodc_h_included
 
 #include "multiprocessing.h"
+#include <cstdint>
 #include <string>
 using namespace std;
 
 const string version = "v1.40";
-
-typedef unsigned int uint;
-typedef unsigned int uint32;
-typedef unsigned long long uint64;
 
 struct factor_t {
     string factorline, method, args;
@@ -44,7 +41,7 @@ string toupper(string in);
 string stripws(string in);
 string tostring(long long n);
 int toint(string s);
-uint64 touint64(string s);
+uint_fast64_t touint64(string s);
 bool isnumber(string s);
 char tohex(int n);
 string urlencode(string in);
