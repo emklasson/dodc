@@ -36,7 +36,7 @@ mutex hmutex_wu_result;
 
 queue<workunit_t> wu_result_queue;
 set<int> running_worker_threads;   // Thread numbers used by running workers.
-atomic<int> reporters_running = 0; // # report_work_thread threads running.
+atomic<int> running_helper_threads = 0; // Number of running helper threads.
 
 map<string, string> cfg;  // Configuration data from .ini file and cmdline.
 map<string, bool> okargs; // Allowed configuration arguments. <name,required>
@@ -255,7 +255,7 @@ bool submit_interval_passed() {
 }
 
 bool report_work_thread(string cmd) {
-    ++reporters_running;
+    ++running_helper_threads;
     cout << "Reporting completed work... Thanks!\n";
     auto [success, exit_code] = spawn_and_wait(cmd);
 
@@ -266,7 +266,7 @@ bool report_work_thread(string cmd) {
         cout << "ERROR: Couldn't report work.\n";
     }
 
-    --reporters_running;
+    --running_helper_threads;
     return success;
 }
 
@@ -988,9 +988,11 @@ int main(int argc, char **argv) {
     // Do one last valiant attempt to submit any unsubmitted factors.
     process_unsubmitted_factors(true);
 
-    while (reporters_running > 0) {
-        cout << "Waiting for " << reporters_running << " work reporting "
-             << pluralise("thread", reporters_running) << " to finish..." << endl;
+    while (running_helper_threads > 0) {
+		int n = running_helper_threads;
+		cout << format("Waiting for {} helper {} to finish...\n",
+			n,
+			pluralise("thread", n));
         this_thread::sleep_for(chrono::seconds(5));
     }
 
