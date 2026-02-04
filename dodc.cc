@@ -853,7 +853,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     } else {
         wu.tempfile = cfg["ecmresultfile"] + tostring(wu.threadnumber);
         wu.cmdline = "echo " + wu.inputnumber + " | " + cfg["ecmcmd"] + " -c " + cfg["curves"] + " " + cfg["ecmargs"] + " " + cfg["b1"] + " > " + wu.tempfile;
-        wu.method = cfg["method"];
+        wu.method = method;
         wu.b1 = cfg["b1"];
         wu.handler = do_workunit_gmp_ecm;
     }
