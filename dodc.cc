@@ -27,7 +27,6 @@ TODO: specifying "1e8" etc as B1 only works because gmp-ecm parses it. dodc does
 #include <string>
 #include <thread>
 #include <vector>
-// #include "dodc_ppsiqs.h"
 // #include "dodc_ggnfs.h"
 // #include "dodc_yafu.h"
 using namespace std;
