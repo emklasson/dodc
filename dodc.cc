@@ -255,6 +255,63 @@ bool report_work_thread(string cmd) {
     return success;
 }
 
+/// @brief Reserves a number on the server in a separate thread.
+/// @param number Number in the format k*2^n&plusmn;1;
+/// @param cmd Commandline to run.
+/// @param wgetcmd Name of wget command.
+/// @param result_file Name of temp file to store result in.
+void reserve_number_thread(string number, string cmd, string wgetcmd, string result_file) {
+	cout << format("Trying to reserve {}...\n", number);
+	auto [success, exit_code] = spawn_and_wait(cmd);
+	if (!success || exit_code != 0) {
+		cout << format("WARNING: Problem running {} while reserving number.\n", wgetcmd);
+	}
+
+	ifstream f(result_file);
+	string line;
+	string msg = format("Couldn't reserve {}.\n", number);
+	while (getline(f, line)) {
+		if (line.find("I reserved the following number") != string::npos) {
+			msg = format("{} reserved successfully.\n", number);
+			break;
+		}
+
+		string tag = "already reserved by ";
+		auto pos = line.find(tag);
+		if (pos != string::npos) {
+			pos += tag.length();
+			auto pos2 = line.find(".<br>", pos);
+			string who = pos2 != string::npos ? line.substr(pos, pos2 - pos) : line.substr(pos);
+			msg = format("{} is already reserved by {}.\n", number, who);
+			break;
+		}
+	}
+
+	cout << msg;
+	f.close();
+	remove(result_file.c_str());
+}
+
+/// @brief Tries to reserve a number on the server.
+/// @param number Number in the format k*2^n&plusmn;1;
+void reserve_number(string number) {
+	static int cnt = 0;
+	string url = cfg["reserve_url"]
+		+ "?name=" + urlencode(cfg["name"])
+		+ "&numbers=" + urlencode(number);
+
+	string result_file = cfg["wgetresultfile"] + "_reserve" + tostring(cnt++);
+	remove(result_file.c_str());
+
+	string cmd = cfg["wgetcmd"]
+		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
+		+ " -q --cache=off --output-document=\"" + result_file + "\" \""
+		+ url + "\"";
+
+	thread t(reserve_number_thread, number, cmd, cfg["wgetcmd"], result_file);
+	t.detach();
+}
+
 bool download_composites() {
     string url = cfg["compositeurl"]
 		+ "?enhanced=true&sort=" + urlencode(cfg["sort"])
@@ -494,7 +551,7 @@ bool init_args() {
                         "manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
                         "wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
                         "worker_threads", "submitinterval", "internet_timeout", "pcore_workers",
-                        "exclude_reservations"};
+                        "exclude_reservations", "reserve_url", "auto_reserve"};
     string optargs[] = {"ecmargs", "fallback", "automethod", "less_spam"};
     for (int j = 0; j < sizeof(reqargs) / sizeof(string); ++j) {
         okargs[reqargs[j]] = true;
@@ -809,6 +866,14 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     }
 
     wu.schedule_bg = wu.threadnumber > toint(cfg["pcore_workers"]);
+
+	int auto_reserve = toint(cfg["auto_reserve"]);
+	if (auto_reserve > 0
+		&& pwu->inputnumber.size() >= auto_reserve
+		&& (pwu->method.contains("NFS")
+			|| pwu->method.contains("QS"))) {
+		reserve_number(pwu->expr);
+	}
 
     // _beginthread( process_workunit, 0, pwu );
     thread t(process_workunit, pwu);
