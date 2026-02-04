@@ -6,7 +6,7 @@
 #include <string>
 using namespace std;
 
-const string version = "v1.36";
+const string version = "v1.40";
 
 typedef unsigned int uint;
 typedef unsigned int uint32;
