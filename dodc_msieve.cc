@@ -3,8 +3,8 @@
 #include <cctype>
 #include <ctime>
 #include <fstream>
-#include <iostream>
 #include <map>
+#include <print>
 #include <set>
 #include <sstream>
 #include <string>
@@ -26,7 +26,7 @@ bool do_workunit_msieve(workunit_t &wu) {
         }
 
         if (!spawn_and_wait(wu.cmdline).first) {
-            cout << "ERROR: Failed spawning msieve.\n";
+            print("ERROR: Failed spawning msieve.\n");
             return false;
         }
 

@@ -1,6 +1,6 @@
 #include "dodc.h"
 #include <fstream>
-#include <iostream>
+#include <print>
 #include <string>
 using namespace std;
 
@@ -24,7 +24,7 @@ bool do_workunit_cado_nfs(workunit_t &wu) {
     }
 
     if (!spawn_and_wait(wu.cmdline).first) {
-        cout << "ERROR: Failed spawning cado-nfs.\n";
+        print("ERROR: Failed spawning cado-nfs.\n");
         return false;
     }
 
@@ -36,7 +36,7 @@ bool do_workunit_cado_nfs(workunit_t &wu) {
             wu.result.factor = line.substr(tag.size());
             break;
         } else {
-            cout << line << endl;
+            print("{}\n", line);
         }
     }
 

@@ -3,8 +3,8 @@
 #include <cctype>
 #include <ctime>
 #include <fstream>
-#include <iostream>
 #include <map>
+#include <print>
 #include <set>
 #include <spawn.h>
 #include <sstream>
@@ -24,7 +24,7 @@ bool do_workunit_gmp_ecm(workunit_t &wu) {
     }
 
     if (!spawn_and_wait(wu.cmdline).first) {
-        cout << "ERROR: Failed spawning ecm.\n";
+        print("ERROR: Failed spawning ecm.\n");
         return false;
     }
 

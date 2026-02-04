@@ -14,7 +14,6 @@ http://mklasson.com
 #include <ctime>
 #include <format>
 #include <fstream>
-#include <iostream>
 #include <map>
 #include <mutex>
 #include <queue>
@@ -192,14 +191,14 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
 		+ "&submitter=" + urlencode("dodc " + version);
     remove(result_file.c_str());
 
-    cout << "Sending factors to server..." << endl;
+    print("Sending factors to server...\n");
     int r = system((cfg["wgetcmd"]
 		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
 		+ " -q --cache=off --output-document=\"" + result_file
 		+ "\" --post-data=\"" + postdata + "\" "
 		+ cfg["submiturl"]).c_str());
     if (r != 0) {
-        cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
+        print("WARNING: wget returned {} while submitting factors. There was probably an error.\n", r);
     }
 
     ifstream f(result_file);
@@ -224,7 +223,7 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
                             if (result == "new") {
                                 ++new_count;
                             } else if (result != "old" && result != "") {
-                                cout << f.first.factorline << " : " << result << endl;
+                                print("{} : {}\n", f.first.factorline, result);
                             }
                         }
                     }
@@ -234,9 +233,9 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
     }
 
     if (!successes) {
-        cout << "ERROR! Couldn't parse submission result." << endl;
+        print("ERROR! Couldn't parse submission result.\n");
     } else {
-        cout << new_count << " new " << pluralise("factor", new_count) << "." << endl;
+        print("{} new {}.\n", new_count, pluralise("factor", new_count));
     }
 
     return successes;
@@ -256,14 +255,14 @@ bool submit_interval_passed() {
 
 bool report_work_thread(string cmd) {
     ++running_helper_threads;
-    cout << "Reporting completed work... Thanks!\n";
+    print("Reporting completed work... Thanks!\n");
     auto [success, exit_code] = spawn_and_wait(cmd);
 
     if (success && exit_code != 0) {
         success = false;
-        cout << format("WARNING: Wget returned {} while reporting work. There was probably an error.\n", exit_code);
+        print("WARNING: Wget returned {} while reporting work. There was probably an error.\n", exit_code);
     } else if (!success) {
-        cout << "ERROR: Couldn't report work.\n";
+        print("ERROR: Couldn't report work.\n");
     }
 
     --running_helper_threads;
@@ -277,18 +276,19 @@ bool report_work_thread(string cmd) {
 /// @param result_file Name of temp file to store result in.
 void reserve_number_thread(string number, string cmd, string wgetcmd, string result_file) {
     ++running_helper_threads;
-	cout << format("Trying to reserve {}...\n", number);
+	print("Trying to reserve {}...\n", number);
 	auto [success, exit_code] = spawn_and_wait(cmd);
 	if (!success || exit_code != 0) {
-		cout << format("WARNING: Problem running {} while reserving number.\n", wgetcmd);
+		print("WARNING: Problem running {} while reserving number.\n", wgetcmd);
 	}
 
 	ifstream f(result_file);
 	string line;
-	string msg = format("Couldn't reserve {}.\n", number);
+	bool handled = false;
 	while (getline(f, line)) {
 		if (line.find("I reserved the following number") != string::npos) {
-			msg = format("{} reserved successfully.\n", number);
+			print("{} reserved successfully.\n", number);
+			handled = true;
 			break;
 		}
 
@@ -298,12 +298,16 @@ void reserve_number_thread(string number, string cmd, string wgetcmd, string res
 			pos += tag.length();
 			auto pos2 = line.find(".<br>", pos);
 			string who = pos2 != string::npos ? line.substr(pos, pos2 - pos) : line.substr(pos);
-			msg = format("{} is already reserved by {}.\n", number, who);
+			print("{} is already reserved by {}.\n", number, who);
+			handled = true;
 			break;
 		}
 	}
 
-	cout << msg;
+	if (!handled) {
+		print("Couldn't reserve {}.\n", number);
+	}
+
 	f.close();
 	remove(result_file.c_str());
     --running_helper_threads;
@@ -347,7 +351,7 @@ bool download_composites() {
         ss >> comma;
     }
 
-    cout << "Downloading composites..." << endl;
+    print("Downloading composites...\n");
     int r = system((cfg["wgetcmd"]
 		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
 		+ " -q --cache=off --output-document=\"" + cfg["compositefile"]
@@ -356,14 +360,14 @@ bool download_composites() {
 
     bool probablyerror = false;
     if (r != 0) {
-        cout << "WARNING: wget returned " << r << ". There was probably an error." << endl;
+        print("WARNING: wget returned {} while downloading composites. There was probably an error.\n", r);
         probablyerror = true;
     }
 
     if (cfg["use_gzip"] == "yes") {
         r = system((cfg["gzipcmd"] + " -df " + cfg["compositefile"] + ".gz").c_str());
         if (r != 0) {
-            cout << "WARNING: gzip returned " << r << ". There was probably an error unpacking composites." << endl;
+            print("WARNING: gzip returned {} while unpacking composites. There was probably an error.\n", r);
             probablyerror = true;
         }
     }
@@ -413,12 +417,16 @@ void process_unsubmitted_factors(bool forceattempt) {
 
     int succeeded = submit_factors(unsubmitted);
 
-    string failstring = "Please submit the factors in " + cfg["submitfailurefile"] + " manually\n"
-		+ "or wait and see if dodc manages to submit them automatically later.\n"
-		+ "Manual submit: " + cfg["manualsubmiturl"] + "\n";
+	auto print_fail = []() {
+		print("Please submit the factors in {} manually\n"
+			"or wait and see if dodc manages to submit them automatically later.\n"
+			"Manual submit: {}\n",
+			cfg["submitfailurefile"],
+			cfg["manualsubmiturl"]);
+	};
 
     if (!succeeded) {
-        cout << failstring;
+        print_fail();
         return;
     }
 
@@ -426,12 +434,11 @@ void process_unsubmitted_factors(bool forceattempt) {
     fin.close();
     remove(cfg["submitfailurefile"].c_str());
     if (succeeded == unsubmitted.size()) {
-        cout << "Submitted all " << tostring(succeeded) << " of your unsubmitted factors!" << endl;
+        print("Submitted all {} of your unsubmitted factors!\n", succeeded);
         return;
     } else {
-        cout << "Submitted " << tostring(succeeded) << " of your "
-             << (uint)unsubmitted.size() << " unsubmitted factors!" << endl;
-        cout << failstring;
+        print("Submitted {} of your {} unsubmitted factors!\n", succeeded, unsubmitted.size());
+        print_fail();
     }
 
     // Dump remaining unsubmitted to file.
@@ -440,8 +447,6 @@ void process_unsubmitted_factors(bool forceattempt) {
             dump_factor(i->first);
         }
     }
-
-    return;
 }
 
 /// @brief Sets a configuration value.
@@ -451,11 +456,11 @@ void process_unsubmitted_factors(bool forceattempt) {
 /// @return True if the argument is valid and was set, false otherwise.
 bool cfg_set(string src, string arg, string val) {
     if (!okargs.count(arg)) {
-        cout << "ERROR: unrecognized option: '" << arg << "'" << endl;
+        print("ERROR: unrecognized option: '{}'\n", arg);
         return false;
     }
 
-    cout << src << ": " << arg << " = " << val << "    " << endl;
+    print("{}: {} = {}    \n", src, arg, val);
     cfg[arg] = val;
     return true;
 }
@@ -469,7 +474,7 @@ bool parse_cmdline(int argc, char **argv) {
             }
 
             if (j + 1 >= argc) {
-                cout << "ERROR: cmdline switch without argument: " << argv[j] << endl;
+                print("ERROR: cmdline switch without argument: {}\n", argv[j]);
                 return false;
             }
 
@@ -478,7 +483,7 @@ bool parse_cmdline(int argc, char **argv) {
 			}
             j += 2;
         } else {
-            cout << "WARNING: unrecognized cmdline argument: " << argv[j] << endl;
+            print("WARNING: unrecognized cmdline argument: {}\n", argv[j]);
             ++j;
         }
     }
@@ -489,18 +494,19 @@ bool parse_cmdline(int argc, char **argv) {
 void adjust_worker_threads(int from, int to) {
     if (from > to) {
         for (int j = from; j > to; --j) {
-            cout << format("Waiting for {} worker {} to finish...\n",
-                           j - to, pluralise("thread", j - to));
+            print("Waiting for {} worker {} to finish...\n",
+				j - to,
+				pluralise("thread", j - to));
             hsem_wu.acquire();
         }
         if (!to) {
             // Process results before idling in case user aborts.
             process_wu_results();
-            cout << "No workers left. Idling...\n";
+            print("No workers left. Idling...\n");
         }
     } else {
         int count = to - from;
-        cout << "Adding " << count << " worker " << pluralise("thread", count) << "." << endl;
+        print("Adding {} worker {}.\n", count, pluralise("thread", count));
         hsem_wu.release(count);
     }
 }
@@ -514,8 +520,8 @@ bool read_inifile(string fname, bool silent_fail = false) {
 
     if (!f.is_open()) {
         if (!silent_fail) {
-            cout << "ERROR: couldn't open .ini file: " << fname << endl;
-            cout << "Look in the dodc archive for an example of a proper .ini file." << endl;
+            print("ERROR: couldn't open .ini file: {}\n", fname);
+            print("Look in the dodc distribution for an example of a proper .ini file.\n");
         }
 
         return false;
@@ -599,25 +605,25 @@ bool verify_args() {
     bool ok = true;
     for (auto i = okargs.begin(); i != okargs.end(); ++i) {
         if (i->second && cfg[i->first] == "") {
-            cout << "ERROR: missing required setting: " << i->first << endl;
+            print("ERROR: missing required setting: {}\n", i->first);
             ok = false;
         }
     }
 
     if (toint(cfg["nmin"]) > toint(cfg["nmax"])) {
-        cout << "ERROR: nmin=" << cfg["nmin"] << " > nmax=" << cfg["nmax"] << " doesn't make sense." << endl;
+        print("ERROR: nmin={} > nmax={} doesn't make sense.\n", cfg["nmin"], cfg["nmax"]);
         ok = false;
     }
 
     cfg["method"] = toupper(cfg["method"]);
     if (!verify_method(cfg["method"])) {
-        cout << "ERROR: unrecognized method: " << cfg["method"] << endl;
+        print("ERROR: unrecognized method: {}\n", cfg["method"]);
         ok = false;
     }
 
 	for (auto& am : get_auto_methods()) {
 		if (!verify_method(am.method)) {
-			cout << "ERROR: unrecognized automethod: " << am.method << endl;
+			print("ERROR: unrecognized automethod: {}\n", am.method);
 			ok = false;
 		}
 	}
@@ -625,13 +631,13 @@ bool verify_args() {
     if (cfg["method"] == "P-1") {
         cfg["ecmargs"] += " -pm1";
         if (toint(cfg["curves"]) != 1) {
-            cout << "WARNING: running " << cfg["curves"] << " P-1 tests doesn't make sense. Forcing <curves> to 1." << endl;
+            print("WARNING: running {} P-1 tests doesn't make sense. Forcing <curves> to 1.\n", cfg["curves"]);
             cfg["curves"] = 1;
         }
     } else if (cfg["method"] == "P+1") {
         cfg["ecmargs"] += " -pp1";
         if (toint(cfg["curves"]) > 3) {
-            cout << "WARNING: running " << cfg["curves"] << " P+1 tests is probably a waste. Try 3 instead." << endl;
+            print("WARNING: running {} P+1 tests is probably a waste. Try 3 instead.\n", cfg["curves"]);
         }
     }
 
@@ -647,7 +653,7 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
         factorline << foundfactor << " | " << inputnumber;
     }
 
-    cout << factorline.str() << "\t" << "(" << tostring(foundfactor.size()) << " digits)" << endl;
+    print("{}\t({} digits)\n", factorline.str(), foundfactor.size());
     fout << factorline.str() << endl;
     if (cfg["autosubmit"] == "yes") {
         dump_factor(factor_t(factorline.str(), method, args));
@@ -664,7 +670,7 @@ int init_composites() {
         ifstream f(cfg["compositefile"]);
         getline(f, line);
         if (line.substr(0, 1) != "#") {
-            cout << "WARNING: trying to do recommended work, but didn't get any settings from server." << endl;
+            print("WARNING: trying to do recommended work, but didn't get any settings from server.\n");
         } else {
             stringstream ss(line.substr(1));
             ss >> ws;
@@ -787,7 +793,9 @@ int process_wu_results() {
         if (submit_interval_passed()) {
             process_unsubmitted_factors(true);
         } else {
-            cout << "Factor(s) saved in " << cfg["submitfailurefile"] << " for now." << endl;
+            print("{} saved in {} for now.\n",
+				pluralise("Factor", found),
+				cfg["submitfailurefile"]);
         }
     }
 
@@ -821,7 +829,6 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 		}
 	}
 
-    cout << "[" << wu.threadnumber << "] ";
     method = toupper(method);
     string msg;
     if (enhanced) {
@@ -831,12 +838,12 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     }
 
     string tab = string(8 - (msg.size() % 8), ' ');
-    msg = format("{}{}[{}]    ", msg, tab, method);
-    if (cfg["less_spam"] == "yes") {
-        cout << msg << "\r" << flush;
-    } else {
-        cout << msg << endl;
-    }
+    print("[{}] {}{}[{}]    {}",
+		wu.threadnumber,
+		msg,
+		tab,
+		method,
+		cfg["less_spam"] == "yes" ? "\r" : "\n");
 
     if (method == "MSIEVE_QS") {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
@@ -889,10 +896,10 @@ void set_priority(int priority = 0) {
 }
 
 int main(int argc, char **argv) {
-    cout << "dodc " << version << " by Mikael Klasson" << endl;
-    cout << "usage: dodc [<settings>]" << endl;
-    cout << "  Make sure you're using the right username." << endl;
-    cout << "  Look in dodc.ini for available options." << endl;
+    print("dodc {} by Mikael Klasson\n", version);
+    print("usage: dodc [<settings>]\n");
+    print("  Make sure you're using the right username.\n");
+    print("  Look in dodc.ini for available options.\n");
     srand((uint)time(0));
     init_args();
     if (!read_inifile("dodc.ini")) {
@@ -904,12 +911,11 @@ int main(int argc, char **argv) {
     }
 
     if (!verify_args()) {
-        cout << "Fix your settings and try again. Exiting." << endl;
+        print("Fix your settings and try again. Exiting.\n");
         return 1;
     }
 
-    cout << "Using factorization method " << cfg["method"] << endl;
-
+    print("Using factorization method {}\n", cfg["method"]);
     set_priority();
     adjust_worker_threads(0, toint(cfg["worker_threads"]));
 
@@ -922,16 +928,16 @@ int main(int argc, char **argv) {
         }
 
         int ccnt = init_composites();
-        cout << "Found " << ccnt << " composites in " << cfg["compositefile"] << "." << endl;
+        print("Found {} composites in {}.\n", ccnt, cfg["compositefile"]);
         if (!ccnt) {
             // Composite file is empty.
             if (cfg["fallback"] == "yes" && cfg["recommendedwork"] != "yes") {
-                cout << "Switching to fallback mode." << endl;
+                print("Switching to fallback mode.\n");
                 cfg["recommendedwork"] = "yes";
                 cfg["autodownload"] = "yes";
                 continue;
             } else {
-                cout << "Work complete. Exiting." << endl;
+                print("Work complete. Exiting.\n");
                 break;
             }
         }
@@ -960,7 +966,7 @@ int main(int argc, char **argv) {
             process_unsubmitted_factors(false);
         }
 
-        cout << "#factors found: " << totalfactors << "    " << endl;
+        print("#factors found: {}    \n", totalfactors);
         if (cfg["reportwork"] == "yes") {
             string url = cfg["reporturl"]
 				+ "?method=" + urlencode(cfg["method"])
@@ -979,20 +985,20 @@ int main(int argc, char **argv) {
         }
 
         cfg["b1"] = tostring(touint64(cfg["b1"]) + touint64(cfg["b1increase"]));
-        cout << "Increasing B1 to " << cfg["b1"] << endl;
+        print("Increasing B1 to {}\n", cfg["b1"]);
     } while (cfg["loop"] == "yes");
 
     adjust_worker_threads(toint(cfg["worker_threads"]), 0);
 
     totalfactors += process_wu_results();
-    cout << "#factors found: " << totalfactors << endl;
+    print("#factors found: {}\n", totalfactors);
 
     // Do one last valiant attempt to submit any unsubmitted factors.
     process_unsubmitted_factors(true);
 
     while (running_helper_threads > 0) {
 		int n = running_helper_threads;
-		cout << format("Waiting for {} helper {} to finish...\n",
+		print("Waiting for {} helper {} to finish...\n",
 			n,
 			pluralise("thread", n));
         this_thread::sleep_for(chrono::seconds(5));
@@ -1001,5 +1007,5 @@ int main(int argc, char **argv) {
     remove(cfg["wgetresultfile"].c_str());
     remove(cfg["ecmresultfile"].c_str());
 
-    cout << "All done! Exiting." << endl;
+    print("All done! Exiting.\n");
 }
