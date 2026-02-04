@@ -144,6 +144,27 @@ string pluralise(string singular, int count) {
     return singular + (count > 1 ? "s" : "");
 }
 
+struct auto_method_t {
+	string method;
+	int minsize;
+	int maxsize;
+};
+
+vector<auto_method_t> get_auto_methods() {
+	vector<auto_method_t> methods;
+	if (cfg["automethod"] != "") {
+		stringstream ss(cfg["automethod"]);
+		auto_method_t am;
+		while (getline(ss, am.method, ',')) {
+			char c;
+			ss >> am.minsize >> c >> am.maxsize >> c;	// Skip ';'.
+			methods.push_back(am);
+		}
+	}
+
+	return methods;
+}
+
 bool dump_factor(factor f) {
     ofstream fout(cfg["submitfailurefile"], ios::app);
     fout << "#method(" << f.method << ")" << "args(" << f.args << ")" << endl;
@@ -594,19 +615,12 @@ bool verify_args() {
         ok = false;
     }
 
-    if (cfg["automethod"] != "") {
-        stringstream ss(cfg["automethod"]);
-        string amethod;
-        while (getline(ss, amethod, ',')) {
-            uint32 minsize, maxsize;
-            char c;
-            ss >> minsize >> c >> maxsize >> c; // Skip fields and ';'.
-            if (!verify_method(amethod)) {
-                cout << "ERROR: unrecognized automethod: " << amethod << endl;
-                ok = false;
-            }
-        }
-    }
+	for (auto& am : get_auto_methods()) {
+		if (!verify_method(am.method)) {
+			cout << "ERROR: unrecognized automethod: " << am.method << endl;
+			ok = false;
+		}
+	}
 
     if (cfg["method"] == "P-1") {
         cfg["ecmargs"] += " -pm1";
@@ -800,21 +814,12 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     wu.expr = expr;
 
     string method = cfg["method"];
-    if (cfg["automethod"] != "") {
-        stringstream ss(cfg["automethod"]);
-        string amethod;
-        while (getline(ss, amethod, ',')) {
-            uint32 minsize, maxsize;
-            char c;
-            ss >> minsize >> c >> maxsize;
-            if (minsize <= inputnumber.size() && maxsize >= inputnumber.size()) {
-                method = amethod;
-                break;
-            }
-
-            ss >> c; // Skip ";".
-        }
-    }
+	for (auto& am : get_auto_methods()) {
+		if (am.minsize <= inputnumber.size() && am.maxsize >= inputnumber.size()) {
+			method = am.method;
+			break;
+		}
+	}
 
     cout << "[" << wu.threadnumber << "] ";
     method = toupper(method);
