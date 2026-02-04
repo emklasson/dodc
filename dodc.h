@@ -2,7 +2,6 @@
 #define __dodc_h_included
 
 #include "multiprocessing.h"
-#include <map>
 #include <string>
 using namespace std;
 
@@ -40,9 +39,6 @@ struct workunit_t {
 
     int threadnumber;
 };
-
-extern map<string, string> cfg;  // Configuration data from .ini file and cmdline.
-extern map<string, bool> okargs; // Allowed configuration arguments. <name,required>
 
 string toupper(string in);
 string stripws(string in);
