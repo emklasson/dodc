@@ -43,7 +43,7 @@ atomic<int> reporters_running = 0; // # report_work_thread threads running.
 map<string, string> cfg;  // Configuration data from .ini file and cmdline.
 map<string, bool> okargs; // Allowed configuration arguments. <name,required>
 
-string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVEQS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
+string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
 
 extern char **environ; // For posix_spawnp.
 
@@ -838,7 +838,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         cout << msg << endl;
     }
 
-    if (method == "MSIEVEQS") {
+    if (method == "MSIEVE_QS") {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
         wu.method = method;
         wu.handler = do_workunit_msieve;

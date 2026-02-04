@@ -34,7 +34,7 @@ bool do_workunit_msieve(workunit_t &wu) {
         while (getline(ftmp, line)) {
             auto pos = line.find(wu.inputnumber);
             if (pos != line.npos) {
-                wu.result.method = "MSIEVEQS";
+                wu.result.method = "MSIEVE_QS";
                 wu.result.args = "";
 
                 while (getline(ftmp, line)) {
