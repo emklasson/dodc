@@ -276,6 +276,7 @@ bool report_work_thread(string cmd) {
 /// @param wgetcmd Name of wget command.
 /// @param result_file Name of temp file to store result in.
 void reserve_number_thread(string number, string cmd, string wgetcmd, string result_file) {
+    ++running_helper_threads;
 	cout << format("Trying to reserve {}...\n", number);
 	auto [success, exit_code] = spawn_and_wait(cmd);
 	if (!success || exit_code != 0) {
@@ -305,6 +306,7 @@ void reserve_number_thread(string number, string cmd, string wgetcmd, string res
 	cout << msg;
 	f.close();
 	remove(result_file.c_str());
+    --running_helper_threads;
 }
 
 /// @brief Tries to reserve a number on the server.
