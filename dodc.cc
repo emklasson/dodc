@@ -51,7 +51,7 @@ int process_wu_results();
 
 string toupper(string in) {
     string s = in;
-    for (uint32 j = 0; j < s.size(); ++j) {
+    for (auto j = 0; j < s.size(); ++j) {
         s[j] = toupper(s[j]);
     }
 
@@ -60,7 +60,7 @@ string toupper(string in) {
 
 string stripws(string in) {
     string s;
-    for (uint32 j = 0; j < in.size(); ++j) {
+    for (auto j = 0; j < in.size(); ++j) {
         if (!isspace(in[j])) {
             s = in.substr(j);
             break;
@@ -95,7 +95,7 @@ uint64 touint64(string s) {
 }
 
 bool isnumber(string s) {
-    for (uint32 j = 0; j < s.size(); ++j) {
+    for (auto j = 0; j < s.size(); ++j) {
         if (!isdigit(s[j])) {
             return false;
         }
@@ -110,7 +110,7 @@ char tohex(int n) {
 
 string urlencode(string in) {
     string s;
-    for (uint32 j = 0; j < in.size(); ++j) {
+    for (auto j = 0; j < in.size(); ++j) {
         if (isalnum(in[j])) {
             s += in[j];
         } else if (in[j] == ' ') {
@@ -414,7 +414,7 @@ void process_unsubmitted_factors(bool forceattempt) {
     }
 
     // Dump remaining unsubmitted to file.
-    for (vector<pair<factor, bool>>::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i) {
+    for (auto i = unsubmitted.begin(); i != unsubmitted.end(); ++i) {
         if (i->second) {
             dump_factor(i->first);
         }
@@ -549,11 +549,11 @@ bool init_args() {
 		"worker_threads", "submitinterval", "internet_timeout", "pcore_workers",
 		"exclude_reservations", "reserve_url", "auto_reserve"};
     string optargs[] = {"ecmargs", "fallback", "automethod", "less_spam"};
-    for (int j = 0; j < sizeof(reqargs) / sizeof(string); ++j) {
+    for (auto j = 0; j < sizeof(reqargs) / sizeof(string); ++j) {
         okargs[reqargs[j]] = true;
     }
 
-    for (int j = 0; j < sizeof(optargs) / sizeof(string); ++j) {
+    for (auto j = 0; j < sizeof(optargs) / sizeof(string); ++j) {
         okargs[optargs[j]] = false;
     }
 
@@ -564,7 +564,7 @@ bool init_args() {
 /// @param method Method to check.
 /// @return True if OK, otherwise false.
 bool verify_method(string method) {
-    for (uint j = 0; j < sizeof(okmethods) / sizeof(string); ++j) {
+    for (auto j = 0; j < sizeof(okmethods) / sizeof(string); ++j) {
         if (method == okmethods[j]) {
             return true;
         }
@@ -575,7 +575,7 @@ bool verify_method(string method) {
 
 bool verify_args() {
     bool ok = true;
-    for (map<string, bool>::iterator i = okargs.begin(); i != okargs.end(); ++i) {
+    for (auto i = okargs.begin(); i != okargs.end(); ++i) {
         if (i->second && cfg[i->first] == "") {
             cout << "ERROR: missing required setting: " << i->first << endl;
             ok = false;
@@ -680,7 +680,7 @@ int init_composites() {
         mt19937 g(rd());
         shuffle(v.begin(), v.end(), g);
         ofstream fout(cfg["compositefile"].c_str());
-        for (uint32 j = 0; j < v.size(); ++j) {
+        for (auto j = 0; j < v.size(); ++j) {
             if (v[j].second != "") {
                 fout << v[j].second << endl;
             }
