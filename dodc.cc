@@ -165,7 +165,7 @@ vector<auto_method_t> get_auto_methods() {
 	return methods;
 }
 
-bool dump_factor(factor f) {
+bool dump_factor(factor_t f) {
     ofstream fout(cfg["submitfailurefile"], ios::app);
     fout << "#method(" << f.method << ")" << "args(" << f.args << ")" << endl;
     fout << f.factorline << endl;
@@ -177,7 +177,7 @@ bool dump_factor(factor f) {
 // Failures must be handled by caller as factors will not be saved in here.
 // Sets factors[].second to false for each submitted factor.
 // Returns number of submitted factors.
-int submit_factors(vector<pair<factor, bool>> &factors) {
+int submit_factors(vector<pair<factor_t, bool>> &factors) {
     int successes = 0;
     string factorlines;
     for (auto i = 0; i < factors.size(); ++i) {
@@ -388,7 +388,7 @@ void process_unsubmitted_factors(bool forceattempt) {
     map<string, string> info;
     info["method"] = cfg["method"]; // Use this if method isn't stored in file.
     string line;
-    vector<pair<factor, bool>> unsubmitted;
+    vector<pair<factor_t, bool>> unsubmitted;
     while (getline(fin, line)) {
         if (!line.size()) {
             continue;
@@ -404,7 +404,7 @@ void process_unsubmitted_factors(bool forceattempt) {
             }
             continue;
         }
-        unsubmitted.push_back(make_pair(factor(line, info["method"], info["args"]), true));
+        unsubmitted.push_back(make_pair(factor_t(line, info["method"], info["args"]), true));
     }
 
     if (!unsubmitted.size()) {
@@ -650,7 +650,7 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
     cout << factorline.str() << "\t" << "(" << tostring(foundfactor.size()) << " digits)" << endl;
     fout << factorline.str() << endl;
     if (cfg["autosubmit"] == "yes") {
-        dump_factor(factor(factorline.str(), method, args));
+        dump_factor(factor_t(factorline.str(), method, args));
     }
 }
 

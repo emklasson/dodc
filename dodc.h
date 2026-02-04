@@ -12,9 +12,9 @@ typedef unsigned int uint;
 typedef unsigned int uint32;
 typedef unsigned long long uint64;
 
-struct factor {
+struct factor_t {
     string factorline, method, args;
-    factor(string _factorline, string _method, string _args) {
+    factor_t(string _factorline, string _method, string _args) {
         factorline = _factorline;
         method = _method;
         args = _args;
