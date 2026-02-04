@@ -145,7 +145,7 @@ string pluralise(string singular, int count) {
 }
 
 bool dump_factor(factor f) {
-    ofstream fout(cfg["submitfailurefile"].c_str(), ios::app);
+    ofstream fout(cfg["submitfailurefile"], ios::app);
     fout << "#method(" << f.method << ")" << "args(" << f.args << ")" << endl;
     fout << f.factorline << endl;
     return true;
@@ -358,7 +358,7 @@ void process_unsubmitted_factors(bool forceattempt) {
     }
 
     lastattempt = time(0);
-    ifstream fin(cfg["submitfailurefile"].c_str());
+    ifstream fin(cfg["submitfailurefile"]);
     if (!fin.is_open()) {
         // Assume file doesn't exist.
         return;
@@ -385,7 +385,6 @@ void process_unsubmitted_factors(bool forceattempt) {
         }
         unsubmitted.push_back(make_pair(factor(line, info["method"], info["args"]), true));
     }
-    fin.close();
 
     if (!unsubmitted.size()) {
         return;
@@ -403,6 +402,7 @@ void process_unsubmitted_factors(bool forceattempt) {
     }
 
     // Remove all old failures.
+    fin.close();
     remove(cfg["submitfailurefile"].c_str());
     if (succeeded == unsubmitted.size()) {
         cout << "Submitted all " << tostring(succeeded) << " of your unsubmitted factors!" << endl;
@@ -489,8 +489,7 @@ void adjust_worker_threads(int from, int to) {
 /// @param silent_fail If true, don't print error messages if the file doesn't exist.
 /// @return True if the file was read successfully, false otherwise.
 bool read_inifile(string fname, bool silent_fail = false) {
-    ifstream f(fname.c_str());
-    string line, arg, val;
+    ifstream f(fname);
 
     if (!f.is_open()) {
         if (!silent_fail) {
@@ -501,7 +500,9 @@ bool read_inifile(string fname, bool silent_fail = false) {
         return false;
     }
 
+    string line;
     while (getline(f, line)) {
+		string arg, val;
         stringstream ss(line);
         getline(ss, arg, '=');
         ss >> ws;
@@ -624,7 +625,7 @@ bool verify_args() {
 }
 
 void found_factor(string foundfactor, bool enhanced, string expr, string inputnumber, string method, string args) {
-    ofstream fout(cfg["factorfile"].c_str(), ios::app);
+    ofstream fout(cfg["factorfile"], ios::app);
     stringstream factorline;
     if (enhanced) {
         factorline << foundfactor << " | " << expr;
@@ -646,7 +647,7 @@ int init_composites() {
     int cnt = 0;
     string line;
     if (cfg["recommendedwork"] == "yes") {
-        ifstream f(cfg["compositefile"].c_str());
+        ifstream f(cfg["compositefile"]);
         getline(f, line);
         if (line.substr(0, 1) != "#") {
             cout << "WARNING: trying to do recommended work, but didn't get any settings from server." << endl;
@@ -661,7 +662,7 @@ int init_composites() {
         }
     }
 
-    ifstream f(cfg["compositefile"].c_str());
+    ifstream f(cfg["compositefile"]);
     if (cfg["order"] == "random") {
         vector<pair<string, string>> v;
         string comment;
@@ -679,7 +680,7 @@ int init_composites() {
         random_device rd;
         mt19937 g(rd());
         shuffle(v.begin(), v.end(), g);
-        ofstream fout(cfg["compositefile"].c_str());
+        ofstream fout(cfg["compositefile"]);
         for (auto j = 0; j < v.size(); ++j) {
             if (v[j].second != "") {
                 fout << v[j].second << endl;
@@ -832,8 +833,6 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         cout << msg << endl;
     }
 
-    // TODO: check if handlers exist for methods specified in automethods when dodc starts.
-
     if (method == "MSIEVEQS") {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
         wu.method = method;
@@ -940,7 +939,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        ifstream fin(cfg["compositefile"].c_str());
+        ifstream fin(cfg["compositefile"]);
         bool enhanced = false;
         string line, expr;
         while (getline(fin, line)) {

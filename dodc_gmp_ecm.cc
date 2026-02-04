@@ -16,8 +16,6 @@ using namespace std;
 /// @param wu The workunit to run GMP-ECM on.
 /// @return True if a factor was found, otherwise false.
 bool do_workunit_gmp_ecm(workunit_t &wu) {
-    workunit_result &result = wu.result;
-    string line;
     bool foundfactor = false;
 
     if (wu.schedule_bg) {
@@ -30,8 +28,9 @@ bool do_workunit_gmp_ecm(workunit_t &wu) {
         return false;
     }
 
-    ifstream ftmp(wu.tempfile.c_str());
+    ifstream ftmp(wu.tempfile);
     string sigma = "";
+    string line;
     while (getline(ftmp, line)) {
         auto pos = line.find("sigma=");
         if (pos != line.npos) {
@@ -49,11 +48,11 @@ bool do_workunit_gmp_ecm(workunit_t &wu) {
             foundfactor = true;
             string p = line.substr(pos + 2);
 
-            result.method = wu.method;
-            result.factor = p;
-            result.args = "B1=" + scientify(wu.b1);
+            wu.result.method = wu.method;
+            wu.result.factor = p;
+            wu.result.args = "B1=" + scientify(wu.b1);
             if (toupper(wu.method) == "ECM") {
-                result.args += ",s=" + sigma;
+                wu.result.args += ",s=" + sigma;
             }
             break;
         }

@@ -15,7 +15,6 @@ using namespace std;
 /// @param wu The workunit to run msieve on.
 /// @return True if a factor was found, otherwise false.
 bool do_workunit_msieve(workunit_t &wu) {
-    workunit_result &result = wu.result;
     string line;
     bool foundfactor = false;
     while (!foundfactor) {
@@ -31,18 +30,18 @@ bool do_workunit_msieve(workunit_t &wu) {
             return false;
         }
 
-        ifstream ftmp((wu.tempfile + ".log").c_str());
+        ifstream ftmp(wu.tempfile + ".log");
         while (getline(ftmp, line)) {
             auto pos = line.find(wu.inputnumber);
             if (pos != line.npos) {
-                result.method = "MSIEVEQS";
-                result.args = "";
+                wu.result.method = "MSIEVEQS";
+                wu.result.args = "";
 
                 while (getline(ftmp, line)) {
                     pos = line.find("factor:");
                     if (pos != line.npos) {
                         stringstream ss(line.substr(pos + 7));
-                        ss >> ws >> result.factor;
+                        ss >> ws >> wu.result.factor;
                         foundfactor = true;
                         break;
                     }
