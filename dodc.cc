@@ -672,7 +672,6 @@ int process_wu_results() {
     int found = 0;
     while (wu_result_queue.size()) {
         workunit_t &wu = wu_result_queue.front();
-        workunit_result &result = wu.result;
         stringstream ss(wu.result.factor);
         string factor;
         while (ss >> factor) {
