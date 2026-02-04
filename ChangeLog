@@ -1,13 +1,34 @@
+----- v1.40, 04 Feb 2026
++ change settings while dodc is running by writing them to dodc_live.ini using
+  the same syntax and parameters as dodc.ini. Very useful for changing e.g. nmax
+  or worker_threads.
++ cado_snfs and cado_gnfs methods are now available if you've got a functional
+  cado-nfs system set up. SNFS uses straight-forward polynomials created from
+  the k*2^n+-1 expression and static parameters from the example for 2^512+1. It
+  seems to work well enough for n around there, but presumably increasingly
+  terrible the further away you get. GNFS uses cado-nfs' built-in poly search.
++ new "internet_timeout" setting aborts internet requests after a while.
++ new "pcore_workers" setting schedules some workers with Background QoS class
+  (macOS only). That runs those workers on Efficency cores only.
++ new "exclude_reservations" setting to skip downloading other people's reserved
+  numbers.
++ new "auto_reserve" and "reserve_url" settings to automatically reserve large
+  numbers you're doing QS or NFS on.
+
+
 ----- v1.36, 21 Jan 2026
 + batch submit all unsubmitted factors instead of one by one.
 + new "submitinterval" setting limits server communication.
 * updated code to build on macOS.
 
+
 ----- v1.35, 25 Apr 2013
 * updated gmp-ecm's sigma parsing to work with newer versions.
 
+
 ----- v1.32, 26 Feb 2009
 + added automation for snfs jobs using ggnfs.
+
 
 ----- v1.31, 11 Feb 2009
 + if more than 1 worker thread was still running when dodc was about to exit,
@@ -15,10 +36,12 @@
   be saved/submitted.
 + all unrecognized methods defaulted to ecm, including "p-1" instead of "P-1".
 
+
 ----- v1.30, 06 Mar 2007
 + new "worker_threads" setting: dodc starts this many worker threads
   simultaneously. Makes it a bit easier to use multiprocessor systems.
 + many things...
+
 
 ----- v1.10, 18 Mar 2004
 + new "b1increase" setting increases b1 by this much each time doecm loops.
