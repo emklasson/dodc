@@ -4,7 +4,9 @@
 #include <string>
 using namespace std;
 
-// Returns true if a factor was found.
+/// @brief Runs CADO-NFS on a workunit.
+/// @param wu The workunit to run CADO-NFS on.
+/// @return True if a factor was found, otherwise false.
 bool do_workunit_cado_nfs(workunit_t &wu) {
     wu.result.args = "cado";
     wu.result.factor = "";
@@ -30,9 +32,6 @@ bool do_workunit_cado_nfs(workunit_t &wu) {
     string line;
     ifstream ftmp(wu.tempfile);
     while (getline(ftmp, line)) {
-        // if (line.find("time") != line.npos) {
-        //     cout << line << endl;
-        // }
         if (line.find(tag) != line.npos) {
             wu.result.factor = line.substr(tag.size());
             break;

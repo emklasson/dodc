@@ -1,15 +1,15 @@
 /*
-dodc (C) Mikael Klasson
+dodc (C) Mikael Klasson 2004-2026
 fluff@mklasson.com
 http://mklasson.com
-
-TODO: specifying "1e8" etc as B1 only works because gmp-ecm parses it. dodc doesn't understand it and interprets it as "1" when applying b1increase.
 */
 
 #include "dodc.h"
 #include "dodc_cado_nfs.h"
+// #include "dodc_ggnfs.h"
 #include "dodc_gmp_ecm.h"
 #include "dodc_msieve.h"
+// #include "dodc_yafu.h"
 #include "multiprocessing.h"
 #include <algorithm>
 #include <cctype>
@@ -27,8 +27,6 @@ TODO: specifying "1e8" etc as B1 only works because gmp-ecm parses it. dodc does
 #include <string>
 #include <thread>
 #include <vector>
-// #include "dodc_ggnfs.h"
-// #include "dodc_yafu.h"
 using namespace std;
 
 // #include <windows.h>
@@ -42,10 +40,10 @@ queue<workunit_t> wu_result_queue;
 set<int> running_worker_threads;   // Thread numbers used by running workers.
 atomic<int> reporters_running = 0; // # report_work_thread threads running.
 
-map<string, string> cfg;  // configuration data from .ini file and cmdline
-map<string, bool> okargs; // allowed configuration arguments. <name,required>
+map<string, string> cfg;  // Configuration data from .ini file and cmdline.
+map<string, bool> okargs; // Allowed configuration arguments. <name,required>
 
-string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVEQS", "CADO_SNFS", "CADO_GNFS"}; //, "GGNFS_SNFS", "YAFU_QS" };	//supported methods
+string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVEQS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
 
 extern char **environ; // For posix_spawnp.
 
@@ -191,7 +189,6 @@ int submit_factors(vector<pair<factor, bool>> &factors) {
     int new_count = 0;
     while (getline(f, line)) {
         if (line.substr(0, prefix.size()) == prefix) {
-            // cout << line << endl;
             for (auto f : factors) {
                 auto pos = line.find(f.first.factorline);
                 f.second = pos == line.npos;
@@ -363,12 +360,12 @@ void process_unsubmitted_factors(bool forceattempt) {
     lastattempt = time(0);
     ifstream fin(cfg["submitfailurefile"].c_str());
     if (!fin.is_open()) {
-        // assume file doesn't exist
+        // Assume file doesn't exist.
         return;
     }
 
     map<string, string> info;
-    info["method"] = cfg["method"]; // use this if method isn't stored in file
+    info["method"] = cfg["method"]; // Use this if method isn't stored in file.
     string line;
     vector<pair<factor, bool>> unsubmitted;
     while (getline(fin, line)) {
@@ -376,7 +373,7 @@ void process_unsubmitted_factors(bool forceattempt) {
             continue;
         }
 
-        // is there extra info present?
+        // Is there extra info present?
         if (line[0] == '#') {
             stringstream ss(line.substr(1));
             string fn, val;
@@ -390,7 +387,6 @@ void process_unsubmitted_factors(bool forceattempt) {
     }
     fin.close();
 
-    // no unsubmitted factors?
     if (!unsubmitted.size()) {
         return;
     }
@@ -406,7 +402,7 @@ void process_unsubmitted_factors(bool forceattempt) {
         return;
     }
 
-    // remove all old failures
+    // Remove all old failures.
     remove(cfg["submitfailurefile"].c_str());
     if (succeeded == unsubmitted.size()) {
         cout << "Submitted all " << tostring(succeeded) << " of your unsubmitted factors!" << endl;
@@ -417,7 +413,7 @@ void process_unsubmitted_factors(bool forceattempt) {
         cout << failstring;
     }
 
-    // dump remaining unsubmitted to file
+    // Dump remaining unsubmitted to file.
     for (vector<pair<factor, bool>>::iterator i = unsubmitted.begin(); i != unsubmitted.end(); ++i) {
         if (i->second) {
             dump_factor(i->first);
@@ -448,7 +444,7 @@ bool parse_cmdline(int argc, char **argv) {
         if (argv[j][0] == '-') {
             string arg = string(argv[j]).substr(1);
             if (arg == "h" || arg == "-help" || arg == "?") {
-                return false; // just display help info, then exit
+                return false; // Just display help info, then exit.
             }
 
             if (j + 1 >= argc) {
@@ -544,13 +540,14 @@ void read_live_config() {
 }
 
 bool init_args() {
-    string reqargs[] = {"name", "b1", "b1increase", "curves", "nmin", "nmax", "loop", "numbers",
-                        "autosubmit", "autodownload", "reportwork", "wgetcmd", "ecmcmd", "gzipcmd",
-                        "use_gzip", "sort", "order", "compositefile", "compositeurl", "submiturl",
-                        "manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
-                        "wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
-                        "worker_threads", "submitinterval", "internet_timeout", "pcore_workers",
-                        "exclude_reservations", "reserve_url", "auto_reserve"};
+    string reqargs[] = {
+		"name", "b1", "b1increase", "curves", "nmin", "nmax", "loop", "numbers",
+		"autosubmit", "autodownload", "reportwork", "wgetcmd", "ecmcmd", "gzipcmd",
+		"use_gzip", "sort", "order", "compositefile", "compositeurl", "submiturl",
+		"manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
+		"wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
+		"worker_threads", "submitinterval", "internet_timeout", "pcore_workers",
+		"exclude_reservations", "reserve_url", "auto_reserve"};
     string optargs[] = {"ecmargs", "fallback", "automethod", "less_spam"};
     for (int j = 0; j < sizeof(reqargs) / sizeof(string); ++j) {
         okargs[reqargs[j]] = true;
@@ -563,7 +560,9 @@ bool init_args() {
     return true;
 }
 
-// verifies that a method is known and supported
+/// @brief Verifies that a method is known and supported.
+/// @param method Method to check.
+/// @return True if OK, otherwise false.
 bool verify_method(string method) {
     for (uint j = 0; j < sizeof(okmethods) / sizeof(string); ++j) {
         if (method == okmethods[j]) {
@@ -600,7 +599,7 @@ bool verify_args() {
         while (getline(ss, amethod, ',')) {
             uint32 minsize, maxsize;
             char c;
-            ss >> minsize >> c >> maxsize >> c; // skip fields and ';'
+            ss >> minsize >> c >> maxsize >> c; // Skip fields and ';'.
             if (!verify_method(amethod)) {
                 cout << "ERROR: unrecognized automethod: " << amethod << endl;
                 ok = false;
@@ -640,9 +639,9 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
     }
 }
 
-// returns the number of composites in <compositefile>
-// also shuffles them if "order = random"
-// processes recommended work settings from server if "recommendedwork = yes"
+/// @brief Initialises the composites file. Shuffling if "order = random".
+/// Processes recommended work settings from server if "recommendedwork = yes".
+/// @return Number of composites in the file.
 int init_composites() {
     int cnt = 0;
     string line;
@@ -734,7 +733,8 @@ void add_wu_result(workunit_t *pwu) {
     wu_result_queue.push(*pwu);
 }
 
-// Returns # found factorisations.
+/// @brief Processes results from work units.
+/// @return Number of found factorisations.
 int process_wu_results() {
     lock_guard<mutex> lock(hmutex_wu_result);
 
@@ -746,7 +746,7 @@ int process_wu_results() {
         while (ss >> factor) {
             found_factor(factor, wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args);
 
-            // trial factor found factor if it's small
+            // Trial factor found factor if it's small.
             if (factor.size() <= 10) {
                 uint64 n = touint64(factor);
                 for (uint64 f = 3; f * f <= n; f += 2) {
@@ -811,7 +811,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
                 break;
             }
 
-            ss >> c; // skip ";"
+            ss >> c; // Skip ";".
         }
     }
 
@@ -832,25 +832,20 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         cout << msg << endl;
     }
 
-    // TODO: check if handlers exist for methods specified in automethods when dodc starts
+    // TODO: check if handlers exist for methods specified in automethods when dodc starts.
 
     if (method == "MSIEVEQS") {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
         wu.method = method;
         wu.handler = do_workunit_msieve;
-        // foundfactor = do_workunit_msieve( wu );
-        // //} else if( method == "MSIEVENFS" ) {
-        // //	wu.tempfile = "msieve.log" + tostring( threadnum );
-        // //	wu.method = method;
-        // //	foundfactor = do_workunit_msieve( wu, result, true );
-        // } else if( method == "GGNFS_SNFS" ) {
-        // 	wu.tempfile = "dodc_ggnfs_snfs_" + tostring( wu.threadnumber );
-        // 	wu.method = method;
-        // 	wu.handler = do_workunit_ggnfs_snfs;
-        // } else if( method == "YAFU_QS" ) {
-        // 	wu.tempfile = "dodc_yafu_qs_" + tostring( wu.threadnumber );
-        // 	wu.method = method;
-        // 	wu.handler = do_workunit_yafu;
+	// } else if( method == "GGNFS_SNFS" ) {
+	// 	wu.tempfile = "dodc_ggnfs_snfs_" + tostring( wu.threadnumber );
+	// 	wu.method = method;
+	// 	wu.handler = do_workunit_ggnfs_snfs;
+	// } else if( method == "YAFU_QS" ) {
+	// 	wu.tempfile = "dodc_yafu_qs_" + tostring( wu.threadnumber );
+	// 	wu.method = method;
+	// 	wu.handler = do_workunit_yafu;
     } else if (method == "CADO_SNFS" || method == "CADO_GNFS") {
         wu.tempfile = "dodc_cado_nfs_" + tostring(wu.threadnumber);
         wu.method = method;
@@ -861,7 +856,6 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         wu.method = cfg["method"];
         wu.b1 = cfg["b1"];
         wu.handler = do_workunit_gmp_ecm;
-        // foundfactor = do_workunit_gmp_ecm( wu );
     }
 
     wu.schedule_bg = wu.threadnumber > toint(cfg["pcore_workers"]);
@@ -879,7 +873,8 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     t.detach();
 }
 
-// sets process priority from 0 to 4 with 0 being idle and 4 being high.
+/// @brief Sets the process priority.
+/// @param priority The priority level (0-4 with 0 being idle and 4 being high).
 void set_priority(int priority = 0) {
 #if defined(WIN32)
     unsigned int aprio[] = {IDLE_PRIORITY_CLASS, BELOW_NORMAL_PRIORITY_CLASS, NORMAL_PRIORITY_CLASS,
@@ -898,7 +893,7 @@ void set_priority(int priority = 0) {
 }
 
 int main(int argc, char **argv) {
-    cout << "dodc " << version << " by Mikael Klasson (mklasson@gmail.com)" << endl;
+    cout << "dodc " << version << " by Mikael Klasson" << endl;
     cout << "usage: dodc [<settings>]" << endl;
     cout << "  Make sure you're using the right username." << endl;
     cout << "  Look in dodc.ini for available options." << endl;
@@ -933,7 +928,7 @@ int main(int argc, char **argv) {
         int ccnt = init_composites();
         cout << "Found " << ccnt << " composites in " << cfg["compositefile"] << "." << endl;
         if (!ccnt) {
-            // compositefile is empty
+            // Composite file is empty.
             if (cfg["fallback"] == "yes" && cfg["recommendedwork"] != "yes") {
                 cout << "Switching to fallback mode." << endl;
                 cfg["recommendedwork"] = "yes";
@@ -987,7 +982,6 @@ int main(int argc, char **argv) {
             t.detach();
         }
 
-        // increase b1
         cfg["b1"] = tostring(touint64(cfg["b1"]) + touint64(cfg["b1increase"]));
         cout << "Increasing B1 to " << cfg["b1"] << endl;
     } while (cfg["loop"] == "yes");
@@ -997,7 +991,7 @@ int main(int argc, char **argv) {
     totalfactors += process_wu_results();
     cout << "#factors found: " << totalfactors << endl;
 
-    // do one last valiant attempt to submit any unsubmitted factors
+    // Do one last valiant attempt to submit any unsubmitted factors.
     process_unsubmitted_factors(true);
 
     while (reporters_running > 0) {
