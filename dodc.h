@@ -23,9 +23,6 @@ struct factor_t {
 
 struct workunit_result {
     string factor, method, args;
-    // workunit_result( string _factor, string _method, string _args ) {
-    //	factor = _factor; method = _method; args = _args;
-    // }
 };
 
 struct workunit_t {
@@ -44,8 +41,8 @@ struct workunit_t {
     int threadnumber;
 };
 
-extern map<string, string> cfg;  // configuration data from .ini file and cmdline
-extern map<string, bool> okargs; // allowed configuration arguments. <name,required>
+extern map<string, string> cfg;  // Configuration data from .ini file and cmdline.
+extern map<string, bool> okargs; // Allowed configuration arguments. <name,required>
 
 string toupper(string in);
 string stripws(string in);
