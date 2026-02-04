@@ -6,10 +6,8 @@ http://mklasson.com
 
 #include "dodc.h"
 #include "dodc_cado_nfs.h"
-// #include "dodc_ggnfs.h"
 #include "dodc_gmp_ecm.h"
 #include "dodc_msieve.h"
-// #include "dodc_yafu.h"
 #include "multiprocessing.h"
 #include <algorithm>
 #include <cctype>
@@ -842,14 +840,6 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
         wu.method = method;
         wu.handler = do_workunit_msieve;
-	// } else if( method == "GGNFS_SNFS" ) {
-	// 	wu.tempfile = "dodc_ggnfs_snfs_" + tostring( wu.threadnumber );
-	// 	wu.method = method;
-	// 	wu.handler = do_workunit_ggnfs_snfs;
-	// } else if( method == "YAFU_QS" ) {
-	// 	wu.tempfile = "dodc_yafu_qs_" + tostring( wu.threadnumber );
-	// 	wu.method = method;
-	// 	wu.handler = do_workunit_yafu;
     } else if (method == "CADO_SNFS" || method == "CADO_GNFS") {
         wu.tempfile = "dodc_cado_nfs_" + tostring(wu.threadnumber);
         wu.method = method;
