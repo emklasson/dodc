@@ -371,9 +371,14 @@ void process_unsubmitted_factors(bool forceattempt) {
     return;
 }
 
+/// @brief Sets a configuration value.
+/// @param src Source of the configuration value (e.g. "cmdline", "ini").
+/// @param arg Argument name.
+/// @param val Value.
+/// @return True if the argument is valid and was set, false otherwise.
 bool cfg_set(string src, string arg, string val) {
     if (!okargs.count(arg)) {
-        cout << "WARNING: unrecognized option: '" << arg << "'" << endl;
+        cout << "ERROR: unrecognized option: '" << arg << "'" << endl;
         return false;
     }
 
@@ -395,7 +400,9 @@ bool parse_cmdline(int argc, char **argv) {
                 return false;
             }
 
-            cfg_set("cmdline", arg, argv[j + 1]);
+            if (!cfg_set("cmdline", arg, argv[j + 1])) {
+				return false;
+			}
             j += 2;
         } else {
             cout << "WARNING: unrecognized cmdline argument: " << argv[j] << endl;
@@ -425,6 +432,10 @@ void adjust_worker_threads(int from, int to) {
     }
 }
 
+/// @brief Reads a .ini file and sets configuration values.
+/// @param fname Name of the .ini file to read.
+/// @param silent_fail If true, don't print error messages if the file doesn't exist.
+/// @return True if the file was read successfully, false otherwise.
 bool read_inifile(string fname, bool silent_fail = false) {
     ifstream f(fname.c_str());
     string line, arg, val;
@@ -452,7 +463,9 @@ bool read_inifile(string fname, bool silent_fail = false) {
             continue;
         }
 
-        cfg_set("ini", arg, val);
+        if (!cfg_set("ini", arg, val)) {
+            return false;
+        }
     }
 
     return true;
@@ -827,9 +840,12 @@ int main(int argc, char **argv) {
     cout << "  Look in dodc.ini for available options." << endl;
     srand((uint)time(0));
     init_args();
-    read_inifile("dodc.ini");
+    if (!read_inifile("dodc.ini")) {
+		return 1;
+	}
+
     if (!parse_cmdline(argc, argv)) {
-        return 0;
+        return 1;
     }
 
     if (!verify_args()) {
