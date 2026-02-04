@@ -21,7 +21,7 @@ struct factor_t {
     }
 };
 
-struct workunit_result {
+struct workunit_result_t {
     string factor, method, args;
 };
 
@@ -32,7 +32,7 @@ struct workunit_t {
     string method;
     string b1;
     bool schedule_bg; // Schedule work in Background process? (macOS)
-    workunit_result result;
+    workunit_result_t result;
     bool (*handler)(workunit_t &wu);
 
     bool enhanced;
