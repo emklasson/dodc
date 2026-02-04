@@ -700,7 +700,7 @@ int init_composites() {
 }
 
 void free_workunit(workunit_t *pwu) {
-    lock_guard<mutex> lock(hmutex_wu);
+    lock_guard lock(hmutex_wu);
 
     running_worker_threads.erase(pwu->threadnumber);
     delete pwu;
@@ -713,7 +713,7 @@ workunit_t *get_workunit() {
         read_live_config();
     }
 
-    lock_guard<mutex> lock(hmutex_wu);
+    lock_guard lock(hmutex_wu);
     workunit_t *pwu = new workunit_t;
 
     // Use the lowest free thread number.
@@ -729,7 +729,7 @@ workunit_t *get_workunit() {
 }
 
 void add_wu_result(workunit_t *pwu) {
-    lock_guard<mutex> lock(hmutex_wu_result);
+    lock_guard lock(hmutex_wu_result);
 
     wu_result_queue.push(*pwu);
 }
@@ -737,7 +737,7 @@ void add_wu_result(workunit_t *pwu) {
 /// @brief Processes results from work units.
 /// @return Number of found factorisations.
 int process_wu_results() {
-    lock_guard<mutex> lock(hmutex_wu_result);
+    lock_guard lock(hmutex_wu_result);
 
     int found = 0;
     while (wu_result_queue.size()) {
