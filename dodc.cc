@@ -684,7 +684,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         wu.tempfile = cfg.ecm_result_file + tostring(wu.threadnumber);
         wu.cmdline = "echo " + wu.inputnumber + " | " + cfg.ecm_cmd + " -c " + tostring(cfg.curves) + " " + cfg.ecm_args + " " + tostring(cfg.b1) + " > " + wu.tempfile;
         wu.method = method;
-        wu.b1 = cfg.b1;
+        wu.b1 = tostring(cfg.b1);
         wu.handler = do_workunit_gmp_ecm;
     }
 
