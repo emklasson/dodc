@@ -750,6 +750,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 		tab,
 		method,
 		cfg["less_spam"] == "yes" ? "\r" : "\n");
+    fflush(stdout);
 
     if (method == "MSIEVE_QS") {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
