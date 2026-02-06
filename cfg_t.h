@@ -50,7 +50,6 @@ public:
 	string composite_file;
 	string factor_file;
 	string submit_failure_file;
-	string sigma_file;
 	string wget_result_file;
 	string ecm_result_file;
 
@@ -100,7 +99,6 @@ public:
         add("composite_file", composite_file, "dodc_composites");
         add("factor_file", factor_file, "dodc_factors.txt");
         add("submit_failure_file", submit_failure_file, "dodc_unsubmitted_factors.txt");
-        add("sigma_file", sigma_file, "dodc_sigmas.txt");
         add("wget_result_file", wget_result_file, "dodc_wget_result");
         add("ecm_result_file", ecm_result_file, "dodc_ecm_result");
     }
