@@ -20,6 +20,10 @@ string toupper(const string &in) {
     return s;
 }
 
+string toyesno(bool b) {
+    return b ? "yes" : "no";
+}
+
 string tostring(long long n) {
     stringstream ss;
     ss << n;

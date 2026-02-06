@@ -7,6 +7,7 @@ using namespace std;
 string trim(const string &s);
 string toupper(const string &in);
 string tostring(long long n);
+string toyesno(bool b);
 int toint(string s);
 uint_fast64_t touint64(string s);
 bool isnumber(string s);

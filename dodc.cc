@@ -4,6 +4,7 @@ fluff@mklasson.com
 http://mklasson.com
 */
 
+#include "cfg_t.h"
 #include "dodc.h"
 #include "dodc_cado_nfs.h"
 #include "dodc_gmp_ecm.h"
@@ -35,11 +36,10 @@ mutex hmutex_wu; // Controls access to running_worker_threads.
 mutex hmutex_wu_result;
 
 queue<workunit_t> wu_result_queue;
-set<int> running_worker_threads;   // Thread numbers used by running workers.
+set<int> running_worker_threads;        // Thread numbers used by running workers.
 atomic<int> running_helper_threads = 0; // Number of running helper threads.
 
-map<string, string> cfg;  // Configuration data from .ini file and cmdline.
-map<string, bool> okargs; // Allowed configuration arguments. <name,required>
+cfg_t cfg;  // Configuration data from .cfg file and cmdline.
 
 string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
 
@@ -55,8 +55,8 @@ struct auto_method_t {
 
 vector<auto_method_t> get_auto_methods() {
 	vector<auto_method_t> methods;
-	if (cfg["automethod"] != "") {
-		stringstream ss(cfg["automethod"]);
+	if (cfg.auto_method != "") {
+		stringstream ss(cfg.auto_method);
 		auto_method_t am;
 		while (getline(ss, am.method, ',')) {
 			char c;
@@ -69,7 +69,7 @@ vector<auto_method_t> get_auto_methods() {
 }
 
 bool dump_factor(factor_t f) {
-    ofstream fout(cfg["submitfailurefile"], ios::app);
+    ofstream fout(cfg.submit_failure_file, ios::app);
     fout << "#method(" << f.method << ")" << "args(" << f.args << ")" << endl;
     fout << f.factorline << endl;
     return true;
@@ -89,8 +89,8 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
 			+ factors[i].first.factorline;
     }
 
-	string result_file = cfg["wgetresultfile"] + "_submit";
-    string postdata = "name=" + urlencode(cfg["name"])
+	string result_file = cfg.wget_result_file + "_submit";
+    string postdata = "name=" + urlencode(cfg.name)
 		+ "&method=unknown"
 		+ "&factors=" + urlencode(factorlines)
 		+ "&args=unknown"
@@ -98,11 +98,11 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
     remove(result_file.c_str());
 
     print("Sending factors to server...\n");
-    int r = system((cfg["wgetcmd"]
-		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
+    int r = system((cfg.wget_cmd
+		+ " -T " + to_string(cfg.internet_timeout * 60)
 		+ " -q --cache=off --output-document=\"" + result_file
 		+ "\" --post-data=\"" + postdata + "\" "
-		+ cfg["submiturl"]).c_str());
+		+ cfg.submit_url).c_str());
     if (r != 0) {
         print("WARNING: wget returned {} while submitting factors. There was probably an error.\n", r);
     }
@@ -147,11 +147,11 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
     return successes;
 }
 
-//  Returns true if submitinterval has passed since last time that happened.
+//  Returns true if submit_interval has passed since last time that happened.
 bool submit_interval_passed() {
     static time_t lastattempt = 0;
     auto now = time(0);
-    if (now - toint(cfg["submitinterval"]) * 60 >= lastattempt) {
+    if (now - cfg.submit_interval * 60 >= lastattempt) {
         lastattempt = now;
         return true;
     }
@@ -178,14 +178,14 @@ bool report_work_thread(string cmd) {
 /// @brief Reserves a number on the server in a separate thread.
 /// @param number Number in the format k*2^n&plusmn;1;
 /// @param cmd Commandline to run.
-/// @param wgetcmd Name of wget command.
+/// @param wget_cmd Name of wget command.
 /// @param result_file Name of temp file to store result in.
-void reserve_number_thread(string number, string cmd, string wgetcmd, string result_file) {
+void reserve_number_thread(string number, string cmd, string wget_cmd, string result_file) {
     ++running_helper_threads;
 	print("Trying to reserve {}...\n", number);
 	auto [success, exit_code] = spawn_and_wait(cmd);
 	if (!success || exit_code != 0) {
-		print("WARNING: Problem running {} while reserving number.\n", wgetcmd);
+		print("WARNING: Problem running {} while reserving number.\n", wget_cmd);
 	}
 
 	ifstream f(result_file);
@@ -223,32 +223,32 @@ void reserve_number_thread(string number, string cmd, string wgetcmd, string res
 /// @param number Number in the format k*2^n&plusmn;1;
 void reserve_number(string number) {
 	static int cnt = 0;
-	string url = cfg["reserve_url"]
-		+ "?name=" + urlencode(cfg["name"])
+	string url = cfg.reserve_url
+		+ "?name=" + urlencode(cfg.name)
 		+ "&numbers=" + urlencode(number);
 
-	string result_file = cfg["wgetresultfile"] + "_reserve" + tostring(cnt++);
+	string result_file = cfg.wget_result_file + "_reserve" + tostring(cnt++);
 	remove(result_file.c_str());
 
-	string cmd = cfg["wgetcmd"]
-		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
+	string cmd = cfg.wget_cmd
+		+ " -T " + to_string(cfg.internet_timeout * 60)
 		+ " -q --cache=off --output-document=\"" + result_file + "\" \""
 		+ url + "\"";
 
-	thread t(reserve_number_thread, number, cmd, cfg["wgetcmd"], result_file);
+	thread t(reserve_number_thread, number, cmd, cfg.wget_cmd, result_file);
 	t.detach();
 }
 
 bool download_composites() {
-    string url = cfg["compositeurl"]
-		+ "?enhanced=true&sort=" + urlencode(cfg["sort"])
-		+ "&nmin=" + urlencode(cfg["nmin"])
-		+ "&nmax=" + urlencode(cfg["nmax"])
-		+ "&order=" + urlencode(cfg["order"])
-		+ "&gzip=" + urlencode(cfg["use_gzip"])
-		+ "&recommendedwork=" + urlencode(cfg["recommendedwork"])
-		+ (cfg["exclude_reservations"] == "yes" ? "&name=" + urlencode(cfg["name"]) : "");
-    stringstream ss(cfg["numbers"]);
+    string url = cfg.composite_url
+		+ "?enhanced=true&sort=" + urlencode(cfg.sort)
+		+ "&nmin=" + tostring(cfg.nmin)
+		+ "&nmax=" + tostring(cfg.nmax)
+		+ "&order=" + urlencode(cfg.order)
+		+ "&gzip=" + toyesno(cfg.use_gzip)
+		+ "&recommendedwork=" + toyesno(cfg.recommended_work)
+		+ (cfg.exclude_reservations ? "&name=" + urlencode(cfg.name) : "");
+    stringstream ss(cfg.numbers);
     int k;
     char plusminus, comma;
     int filenr = 1;
@@ -258,10 +258,10 @@ bool download_composites() {
     }
 
     print("Downloading composites...\n");
-    int r = system((cfg["wgetcmd"]
-		+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
-		+ " -q --cache=off --output-document=\"" + cfg["compositefile"]
-		+ (cfg["use_gzip"] == "yes" ? ".gz" : "") + "\" \""
+    int r = system((cfg.wget_cmd
+		+ " -T " + to_string(cfg.internet_timeout * 60)
+		+ " -q --cache=off --output-document=\"" + cfg.composite_file
+		+ (cfg.use_gzip ? ".gz" : "") + "\" \""
 		+ url + "\"").c_str());
 
     bool probablyerror = false;
@@ -270,8 +270,8 @@ bool download_composites() {
         probablyerror = true;
     }
 
-    if (cfg["use_gzip"] == "yes") {
-        r = system((cfg["gzipcmd"] + " -df " + cfg["compositefile"] + ".gz").c_str());
+    if (cfg.use_gzip) {
+        r = system((cfg.gzip_cmd + " -df " + cfg.composite_file + ".gz").c_str());
         if (r != 0) {
             print("WARNING: gzip returned {} while unpacking composites. There was probably an error.\n", r);
             probablyerror = true;
@@ -284,19 +284,19 @@ bool download_composites() {
 // Returns true if all previously unsubmitted factors were submitted ok now.
 void process_unsubmitted_factors(bool forceattempt) {
     static time_t lastattempt = 0;
-    if (!forceattempt && (time(0) - toint(cfg["submitretryinterval"]) * 60 < lastattempt)) {
+    if (!forceattempt && (time(0) - cfg.submit_retry_interval * 60 < lastattempt)) {
         return;
     }
 
     lastattempt = time(0);
-    ifstream fin(cfg["submitfailurefile"]);
+    ifstream fin(cfg.submit_failure_file);
     if (!fin.is_open()) {
         // Assume file doesn't exist.
         return;
     }
 
     map<string, string> info;
-    info["method"] = cfg["method"]; // Use this if method isn't stored in file.
+    info["method"] = cfg.method; // Use this if method isn't stored in file.
     string line;
     vector<pair<factor_t, bool>> unsubmitted;
     while (getline(fin, line)) {
@@ -327,8 +327,8 @@ void process_unsubmitted_factors(bool forceattempt) {
 		print("Please submit the factors in {} manually\n"
 			"or wait and see if dodc manages to submit them automatically later.\n"
 			"Manual submit: {}\n",
-			cfg["submitfailurefile"],
-			cfg["manualsubmiturl"]);
+			cfg.submit_failure_file,
+			cfg.manual_submit_url);
 	};
 
     if (!succeeded) {
@@ -338,7 +338,7 @@ void process_unsubmitted_factors(bool forceattempt) {
 
     // Remove all old failures.
     fin.close();
-    remove(cfg["submitfailurefile"].c_str());
+    remove(cfg.submit_failure_file.c_str());
     if (succeeded == unsubmitted.size()) {
         print("Submitted all {} of your unsubmitted factors!\n", succeeded);
         return;
@@ -355,22 +355,6 @@ void process_unsubmitted_factors(bool forceattempt) {
     }
 }
 
-/// @brief Sets a configuration value.
-/// @param src Source of the configuration value (e.g. "cmdline", "ini").
-/// @param arg Argument name.
-/// @param val Value.
-/// @return True if the argument is valid and was set, false otherwise.
-bool cfg_set(string src, string arg, string val) {
-    if (!okargs.count(arg)) {
-        print("ERROR: unrecognized option: '{}'\n", arg);
-        return false;
-    }
-
-    print("{}: {} = {}    \n", src, arg, val);
-    cfg[arg] = val;
-    return true;
-}
-
 bool parse_cmdline(int argc, char **argv) {
     for (int j = 1; j < argc;) {
         if (argv[j][0] == '-') {
@@ -384,7 +368,7 @@ bool parse_cmdline(int argc, char **argv) {
                 return false;
             }
 
-            if (!cfg_set("cmdline", arg, argv[j + 1])) {
+            if (!cfg.set("cmdline", arg, argv[j + 1])) {
 				return false;
 			}
             j += 2;
@@ -417,81 +401,19 @@ void adjust_worker_threads(int from, int to) {
     }
 }
 
-/// @brief Reads a .ini file and sets configuration values.
-/// @param fname Name of the .ini file to read.
-/// @param silent_fail If true, don't print error messages if the file doesn't exist.
-/// @return True if the file was read successfully, false otherwise.
-bool read_inifile(string fname, bool silent_fail = false) {
-    ifstream f(fname);
-
-    if (!f.is_open()) {
-        if (!silent_fail) {
-            print("ERROR: couldn't open .ini file: {}\n", fname);
-            print("Look in the dodc distribution for an example of a proper .ini file.\n");
-        }
-
-        return false;
-    }
-
-    string line;
-    while (getline(f, line)) {
-		string arg, val;
-        stringstream ss(line);
-        getline(ss, arg, '=');
-        ss >> ws;
-        arg = trim(arg);
-        if (!getline(ss, val)) {
-            continue;
-        }
-
-        val = trim(val);
-        if (arg.substr(0, 2) == "//" || arg.substr(0, 1) == "#" || arg.substr(0, 1) == ";") {
-            continue;
-        }
-
-        if (!cfg_set("ini", arg, val)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
 void read_live_config() {
-    string live_filename = "dodc_live.ini";
-    int threads = toint(cfg["worker_threads"]);
+    string live_filename = "dodc_live.cfg";
+    auto old_threads = cfg.worker_threads;
 
-    if (!read_inifile(live_filename, true)) {
+    if (!cfg.read(live_filename, true)) {
         return;
     }
 
-    int new_threads = toint(cfg["worker_threads"]);
-    if (new_threads != threads) {
-        adjust_worker_threads(threads, new_threads);
+    if (cfg.worker_threads != old_threads) {
+        adjust_worker_threads(old_threads, cfg.worker_threads);
     }
 
     remove(live_filename.c_str());
-}
-
-bool init_args() {
-    string reqargs[] = {
-		"name", "b1", "b1increase", "curves", "nmin", "nmax", "loop", "numbers",
-		"autosubmit", "autodownload", "reportwork", "wgetcmd", "ecmcmd", "gzipcmd",
-		"use_gzip", "sort", "order", "compositefile", "compositeurl", "submiturl",
-		"manualsubmiturl", "reporturl", "factorfile", "submitfailurefile", "sigmafile",
-		"wgetresultfile", "ecmresultfile", "recommendedwork", "method", "submitretryinterval",
-		"worker_threads", "submitinterval", "internet_timeout", "pcore_workers",
-		"exclude_reservations", "reserve_url", "auto_reserve"};
-    string optargs[] = {"ecmargs", "fallback", "automethod", "less_spam"};
-    for (auto j = 0; j < sizeof(reqargs) / sizeof(string); ++j) {
-        okargs[reqargs[j]] = true;
-    }
-
-    for (auto j = 0; j < sizeof(optargs) / sizeof(string); ++j) {
-        okargs[optargs[j]] = false;
-    }
-
-    return true;
 }
 
 /// @brief Verifies that a method is known and supported.
@@ -509,21 +431,19 @@ bool verify_method(string method) {
 
 bool verify_args() {
     bool ok = true;
-    for (auto i = okargs.begin(); i != okargs.end(); ++i) {
-        if (i->second && cfg[i->first] == "") {
-            print("ERROR: missing required setting: {}\n", i->first);
-            ok = false;
-        }
-    }
-
-    if (toint(cfg["nmin"]) > toint(cfg["nmax"])) {
-        print("ERROR: nmin={} > nmax={} doesn't make sense.\n", cfg["nmin"], cfg["nmax"]);
+    if (cfg.name == "") {
+        print("ERROR: you must specify a name. Use Anonymous if you don't want to be credited.\n");
         ok = false;
     }
 
-    cfg["method"] = toupper(cfg["method"]);
-    if (!verify_method(cfg["method"])) {
-        print("ERROR: unrecognized method: {}\n", cfg["method"]);
+    if (cfg.nmin > cfg.nmax) {
+        print("ERROR: nmin={} > nmax={} doesn't make sense.\n", cfg.nmin, cfg.nmax);
+        ok = false;
+    }
+
+    cfg.method = toupper(cfg.method);
+    if (!verify_method(cfg.method)) {
+        print("ERROR: unrecognized method: {}\n", cfg.method);
         ok = false;
     }
 
@@ -534,16 +454,16 @@ bool verify_args() {
 		}
 	}
 
-    if (cfg["method"] == "P-1") {
-        cfg["ecmargs"] += " -pm1";
-        if (toint(cfg["curves"]) != 1) {
-            print("WARNING: running {} P-1 tests doesn't make sense. Forcing <curves> to 1.\n", cfg["curves"]);
-            cfg["curves"] = 1;
+    if (cfg.method == "P-1") {
+        cfg.ecm_args += " -pm1";
+        if (cfg.curves != 1) {
+            print("WARNING: running {} P-1 tests doesn't make sense. Forcing <curves> to 1.\n", cfg.curves);
+            cfg.curves = 1;
         }
-    } else if (cfg["method"] == "P+1") {
-        cfg["ecmargs"] += " -pp1";
-        if (toint(cfg["curves"]) > 3) {
-            print("WARNING: running {} P+1 tests is probably a waste. Try 3 instead.\n", cfg["curves"]);
+    } else if (cfg.method == "P+1") {
+        cfg.ecm_args += " -pp1";
+        if (cfg.curves > 3) {
+            print("WARNING: running {} P+1 tests is probably a waste. Try 3 instead.\n", cfg.curves);
         }
     }
 
@@ -551,7 +471,7 @@ bool verify_args() {
 }
 
 void found_factor(string foundfactor, bool enhanced, string expr, string inputnumber, string method, string args) {
-    ofstream fout(cfg["factorfile"], ios::app);
+    ofstream fout(cfg.factor_file, ios::app);
     stringstream factorline;
     if (enhanced) {
         factorline << foundfactor << " | " << expr;
@@ -561,19 +481,19 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
 
     print("{}\t({} digits)\n", factorline.str(), foundfactor.size());
     fout << factorline.str() << endl;
-    if (cfg["autosubmit"] == "yes") {
+    if (cfg.auto_submit) {
         dump_factor(factor_t(factorline.str(), method, args));
     }
 }
 
 /// @brief Initialises the composites file. Shuffling if "order = random".
-/// Processes recommended work settings from server if "recommendedwork = yes".
+/// Processes recommended work settings from server if "recommended_work = yes".
 /// @return Number of composites in the file.
 int init_composites() {
     int cnt = 0;
     string line;
-    if (cfg["recommendedwork"] == "yes") {
-        ifstream f(cfg["compositefile"]);
+    if (cfg.recommended_work) {
+        ifstream f(cfg.composite_file);
         getline(f, line);
         if (line.substr(0, 1) != "#") {
             print("WARNING: trying to do recommended work, but didn't get any settings from server.\n");
@@ -583,13 +503,13 @@ int init_composites() {
             string fn, val;
             while (getline(ss, fn, '(')) {
                 getline(ss, val, ')');
-                cfg_set("recommended work", fn, val);
+                cfg.set("recommended work", fn, val);
             }
         }
     }
 
-    ifstream f(cfg["compositefile"]);
-    if (cfg["order"] == "random") {
+    ifstream f(cfg.composite_file);
+    if (cfg.order == "random") {
         vector<pair<string, string>> v;
         string comment;
         while (getline(f, line)) {
@@ -606,7 +526,7 @@ int init_composites() {
         random_device rd;
         mt19937 g(rd());
         shuffle(v.begin(), v.end(), g);
-        ofstream fout(cfg["compositefile"]);
+        ofstream fout(cfg.composite_file);
         for (auto j = 0; j < v.size(); ++j) {
             if (v[j].second != "") {
                 fout << v[j].second << endl;
@@ -701,7 +621,7 @@ int process_wu_results() {
         } else {
             print("{} saved in {} for now.\n",
 				pluralise("Factor", found),
-				cfg["submitfailurefile"]);
+				cfg.submit_failure_file);
         }
     }
 
@@ -727,7 +647,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     wu.enhanced = enhanced;
     wu.expr = expr;
 
-    string method = cfg["method"];
+    string method = cfg.method;
 	for (auto& am : get_auto_methods()) {
 		if (am.minsize <= inputnumber.size() && am.maxsize >= inputnumber.size()) {
 			method = am.method;
@@ -749,7 +669,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 		msg,
 		tab,
 		method,
-		cfg["less_spam"] == "yes" ? "\r" : "\n");
+		cfg.less_spam ? "\r" : "\n");
     fflush(stdout);
 
     if (method == "MSIEVE_QS") {
@@ -761,18 +681,17 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         wu.method = method;
         wu.handler = do_workunit_cado_nfs;
     } else {
-        wu.tempfile = cfg["ecmresultfile"] + tostring(wu.threadnumber);
-        wu.cmdline = "echo " + wu.inputnumber + " | " + cfg["ecmcmd"] + " -c " + cfg["curves"] + " " + cfg["ecmargs"] + " " + cfg["b1"] + " > " + wu.tempfile;
+        wu.tempfile = cfg.ecm_result_file + tostring(wu.threadnumber);
+        wu.cmdline = "echo " + wu.inputnumber + " | " + cfg.ecm_cmd + " -c " + tostring(cfg.curves) + " " + cfg.ecm_args + " " + tostring(cfg.b1) + " > " + wu.tempfile;
         wu.method = method;
-        wu.b1 = cfg["b1"];
+        wu.b1 = cfg.b1;
         wu.handler = do_workunit_gmp_ecm;
     }
 
-    wu.schedule_bg = wu.threadnumber > toint(cfg["pcore_workers"]);
+    wu.schedule_bg = wu.threadnumber > cfg.pcore_workers;
 
-	int auto_reserve = toint(cfg["auto_reserve"]);
-	if (auto_reserve > 0
-		&& pwu->inputnumber.size() >= auto_reserve
+	if (cfg.auto_reserve > 0
+		&& pwu->inputnumber.size() >= cfg.auto_reserve
 		&& (pwu->method.contains("NFS")
 			|| pwu->method.contains("QS"))) {
 		reserve_number(pwu->expr);
@@ -806,10 +725,9 @@ int main(int argc, char **argv) {
     print("dodc {} by Mikael Klasson\n", version);
     print("usage: dodc [<settings>]\n");
     print("  Make sure you're using the right username.\n");
-    print("  Look in dodc.ini for available options.\n");
+    print("  Look in dodc.cfg for available options.\n");
     srand((uint)time(0));
-    init_args();
-    if (!read_inifile("dodc.ini")) {
+    if (!cfg.read()) {
 		return 1;
 	}
 
@@ -822,26 +740,26 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    print("Using factorization method {}\n", cfg["method"]);
+    print("Using factorization method {}\n", cfg.method);
     set_priority();
-    adjust_worker_threads(0, toint(cfg["worker_threads"]));
+    adjust_worker_threads(0, cfg.worker_threads);
 
     int totalfactors = 0;
     do {
         process_unsubmitted_factors(true);
 
-        if (cfg["autodownload"] == "yes") {
+        if (cfg.auto_download) {
             download_composites();
         }
 
         int ccnt = init_composites();
-        print("Found {} composites in {}.\n", ccnt, cfg["compositefile"]);
+        print("Found {} composites in {}.\n", ccnt, cfg.composite_file);
         if (!ccnt) {
             // Composite file is empty.
-            if (cfg["fallback"] == "yes" && cfg["recommendedwork"] != "yes") {
+            if (cfg.fallback && !cfg.recommended_work) {
                 print("Switching to fallback mode.\n");
-                cfg["recommendedwork"] = "yes";
-                cfg["autodownload"] = "yes";
+                cfg.recommended_work = true;
+                cfg.auto_download = true;
                 continue;
             } else {
                 print("Work complete. Exiting.\n");
@@ -849,7 +767,7 @@ int main(int argc, char **argv) {
             }
         }
 
-        ifstream fin(cfg["compositefile"]);
+        ifstream fin(cfg.composite_file);
         bool enhanced = false;
         string line, expr;
         while (getline(fin, line)) {
@@ -874,28 +792,28 @@ int main(int argc, char **argv) {
         }
 
         print("#factors found: {}    \n", totalfactors);
-        if (cfg["reportwork"] == "yes") {
-            string url = cfg["reporturl"]
-				+ "?method=" + urlencode(cfg["method"])
-				+ "&numbers=" + urlencode(cfg["numbers"])
-				+ "&nmin=" + urlencode(cfg["nmin"])
-				+ "&nmax=" + urlencode(cfg["nmax"])
-				+ "&b1=" + urlencode(cfg["b1"])
-				+ "&curves=" + urlencode(cfg["curves"]);
-            string cmd = cfg["wgetcmd"]
-				+ " -T " + to_string(toint(cfg["internet_timeout"]) * 60)
+        if (cfg.report_work) {
+            string url = cfg.report_url
+				+ "?method=" + urlencode(cfg.method)
+				+ "&numbers=" + urlencode(cfg.numbers)
+				+ "&nmin=" + tostring(cfg.nmin)
+				+ "&nmax=" + tostring(cfg.nmax)
+				+ "&b1=" + tostring(cfg.b1)
+				+ "&curves=" + tostring(cfg.curves);
+            string cmd = cfg.wget_cmd
+				+ " -T " + to_string(cfg.internet_timeout * 60)
 				+ " -q --cache=off"
-				+ " --output-document=\"" + cfg["wgetresultfile"] + "_report\""
+				+ " --output-document=\"" + cfg.wget_result_file + "_report\""
 				+ " \"" + url + "\"";
             thread t(report_work_thread, cmd);
             t.detach();
         }
 
-        cfg["b1"] = tostring(touint64(cfg["b1"]) + touint64(cfg["b1increase"]));
-        print("Increasing B1 to {}\n", cfg["b1"]);
-    } while (cfg["loop"] == "yes");
+        cfg.b1 += cfg.b1_increase;
+        print("Increasing B1 to {}\n", cfg.b1);
+    } while (cfg.loop);
 
-    adjust_worker_threads(toint(cfg["worker_threads"]), 0);
+    adjust_worker_threads(cfg.worker_threads, 0);
 
     totalfactors += process_wu_results();
     print("#factors found: {}\n", totalfactors);
@@ -911,8 +829,8 @@ int main(int argc, char **argv) {
         this_thread::sleep_for(chrono::seconds(5));
     }
 
-    remove(cfg["wgetresultfile"].c_str());
-    remove(cfg["ecmresultfile"].c_str());
+    remove(cfg.wget_result_file.c_str());
+    remove(cfg.ecm_result_file.c_str());
 
     print("All done! Exiting.\n");
 }
