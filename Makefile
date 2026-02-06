@@ -2,7 +2,7 @@ CXX=clang++
 CXXFLAGS=-std=c++23 -Wall
 LDFLAGS=
 
-DODC_SOURCES = dodc.cc dodc_gmp_ecm.cc dodc_msieve.cc dodc_cado_nfs.cc multiprocessing.cc
+DODC_SOURCES = dodc.cc dodc_gmp_ecm.cc dodc_msieve.cc dodc_cado_nfs.cc multiprocessing.cc string_utils.cc
 SCHEDULE_BG_SOURCES = schedule_bg.cc multiprocessing.cc
 
 DODC_OBJECTS := $(patsubst %.cc,%.o,$(DODC_SOURCES))

@@ -9,6 +9,7 @@ http://mklasson.com
 #include "dodc_gmp_ecm.h"
 #include "dodc_msieve.h"
 #include "multiprocessing.h"
+#include "string_utils.h"
 #include <algorithm>
 #include <cctype>
 #include <ctime>
@@ -45,101 +46,6 @@ string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"
 extern char **environ; // For posix_spawnp.
 
 int process_wu_results();
-
-string toupper(string in) {
-    string s = in;
-    for (auto j = 0; j < s.size(); ++j) {
-        s[j] = toupper(s[j]);
-    }
-
-    return s;
-}
-
-string stripws(string in) {
-    string s;
-    for (auto j = 0; j < in.size(); ++j) {
-        if (!isspace(in[j])) {
-            s = in.substr(j);
-            break;
-        }
-    }
-
-    while (s.size() && isspace(s[s.size() - 1])) {
-        s.resize(s.size() - 1);
-    }
-
-    return s;
-}
-
-string tostring(long long n) {
-    stringstream ss;
-    ss << n;
-    return ss.str();
-}
-
-int toint(string s) {
-    stringstream ss(s);
-    int n;
-    ss >> n;
-    return n;
-}
-
-uint_fast64_t touint64(string s) {
-    stringstream ss(s);
-    uint_fast64_t n;
-    ss >> n;
-    return n;
-}
-
-bool isnumber(string s) {
-    for (auto j = 0; j < s.size(); ++j) {
-        if (!isdigit(s[j])) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-char tohex(int n) {
-    return string("0123456789abcdef")[n % 16];
-}
-
-string urlencode(string in) {
-    string s;
-    for (auto j = 0; j < in.size(); ++j) {
-        if (isalnum(in[j])) {
-            s += in[j];
-        } else if (in[j] == ' ') {
-            s += '+';
-        } else {
-            s += '%';
-            s += tohex(in[j] / 16);
-            s += tohex(in[j] % 16);
-        }
-    }
-
-    return s;
-}
-
-// "11000000" -> "11e6"
-string scientify(string n) {
-    int e = 0;
-    while (n.size() > 1 && n[n.size() - 1] == '0') {
-        ++e;
-        n.resize(n.size() - 1);
-    }
-
-    if (e < 4) {
-        return n + string(e, '0');
-    }
-
-    return n + "e" + tostring(e);
-}
-
-string pluralise(string singular, int count) {
-    return singular + (count > 1 ? "s" : "");
-}
 
 struct auto_method_t {
 	string method;
@@ -533,12 +439,12 @@ bool read_inifile(string fname, bool silent_fail = false) {
         stringstream ss(line);
         getline(ss, arg, '=');
         ss >> ws;
-        arg = stripws(arg);
+        arg = trim(arg);
         if (!getline(ss, val)) {
             continue;
         }
 
-        val = stripws(val);
+        val = trim(val);
         if (arg.substr(0, 2) == "//" || arg.substr(0, 1) == "#" || arg.substr(0, 1) == ";") {
             continue;
         }
