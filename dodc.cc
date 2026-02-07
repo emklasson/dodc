@@ -13,6 +13,7 @@ http://mklasson.com
 #include "string_utils.h"
 #include <algorithm>
 #include <cctype>
+#include <csignal>
 #include <ctime>
 #include <format>
 #include <fstream>
@@ -38,14 +39,19 @@ mutex hmutex_wu_result;
 queue<workunit_t> wu_result_queue;
 set<int> running_worker_threads;        // Thread numbers used by running workers.
 atomic<int> running_helper_threads = 0; // Number of running helper threads.
+atomic_flag quit = false;               // Set to true by SIGINT handler to exit program.
 
 cfg_t cfg;  // Configuration data from .cfg file and cmdline.
 
 string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
 
+int total_factors = 0; // Total number of found factors.
+
 extern char **environ; // For posix_spawnp.
 
 int process_wu_results();
+void check_quit();
+void cleanup_and_exit();
 
 struct auto_method_t {
 	string method;
@@ -391,7 +397,7 @@ void adjust_worker_threads(int from, int to) {
         }
         if (!to) {
             // Process results before idling in case user aborts.
-            process_wu_results();
+            total_factors += process_wu_results();
             print("No workers left. Idling...\n");
         }
     } else {
@@ -401,10 +407,14 @@ void adjust_worker_threads(int from, int to) {
     }
 }
 
+/// @brief Reads a live configuration file and applies any changes.
+/// Also checks if quit has been set and if so shuts down cleanly.
 void read_live_config() {
     string live_filename = "dodc_live.cfg";
-    auto old_threads = cfg.worker_threads;
 
+    check_quit();
+
+    auto old_threads = cfg.worker_threads;
     if (!cfg.read(live_filename, true)) {
         return;
     }
@@ -553,6 +563,7 @@ void free_workunit(workunit_t *pwu) {
     hsem_wu.release();
 }
 
+/// @brief Gets a new workunit when a thread is available.
 workunit_t *get_workunit() {
     read_live_config();
     while (!hsem_wu.try_acquire_for(chrono::seconds(5))) {
@@ -638,11 +649,9 @@ void process_workunit(void *p) {
     free_workunit(pwu);
 }
 
-// Returns true if a factor was found.
 void do_workunit(string inputnumber, bool enhanced, string expr) {
     workunit_t *pwu = get_workunit();
     workunit_t &wu = *pwu;
-
     wu.inputnumber = inputnumber;
     wu.enhanced = enhanced;
     wu.expr = expr;
@@ -721,11 +730,49 @@ void set_priority(int priority = 0) {
 #endif
 }
 
+void check_quit() {
+    if (quit.test()) {
+        print("Caught SIGINT. Finishing current work units before exiting...\n");
+        cleanup_and_exit();
+    }
+}
+
+void cleanup_and_exit() {
+    adjust_worker_threads(cfg.worker_threads, 0);
+
+    total_factors += process_wu_results();
+    print("#factors found: {}\n", total_factors);
+
+    // Do one last valiant attempt to submit any unsubmitted factors.
+    process_unsubmitted_factors(true);
+
+    while (running_helper_threads > 0) {
+		int n = running_helper_threads;
+		print("Waiting for {} helper {} to finish...\n",
+			n,
+			pluralise("thread", n));
+        this_thread::sleep_for(chrono::seconds(5));
+    }
+
+    remove(cfg.wget_result_file.c_str());
+    remove(cfg.ecm_result_file.c_str());
+
+    print("All done! Exiting.\n");
+    exit(0);
+}
+
+void signal_handler(int signum) {
+    if (signum == SIGINT) {
+        quit.test_and_set();
+    }
+}
+
 int main(int argc, char **argv) {
     print("dodc {} by Mikael Klasson\n", version);
     print("usage: dodc [<settings>]\n");
     print("  Make sure you're using the right username.\n");
     print("  Look in dodc.cfg for available options.\n");
+    signal(SIGINT, signal_handler);
     srand((uint)time(0));
     if (!cfg.read()) {
 		return 1;
@@ -744,7 +791,6 @@ int main(int argc, char **argv) {
     set_priority();
     adjust_worker_threads(0, cfg.worker_threads);
 
-    int totalfactors = 0;
     do {
         process_unsubmitted_factors(true);
 
@@ -787,11 +833,11 @@ int main(int argc, char **argv) {
             }
 
             do_workunit(line, enhanced, expr);
-            totalfactors += process_wu_results();
+            total_factors += process_wu_results();
             process_unsubmitted_factors(false);
         }
 
-        print("#factors found: {}    \n", totalfactors);
+        print("#factors found: {}    \n", total_factors);
         if (cfg.report_work) {
             string url = cfg.report_url
 				+ "?method=" + urlencode(cfg.method)
@@ -813,24 +859,5 @@ int main(int argc, char **argv) {
         print("Increasing B1 to {}\n", cfg.b1);
     } while (cfg.loop);
 
-    adjust_worker_threads(cfg.worker_threads, 0);
-
-    totalfactors += process_wu_results();
-    print("#factors found: {}\n", totalfactors);
-
-    // Do one last valiant attempt to submit any unsubmitted factors.
-    process_unsubmitted_factors(true);
-
-    while (running_helper_threads > 0) {
-		int n = running_helper_threads;
-		print("Waiting for {} helper {} to finish...\n",
-			n,
-			pluralise("thread", n));
-        this_thread::sleep_for(chrono::seconds(5));
-    }
-
-    remove(cfg.wget_result_file.c_str());
-    remove(cfg.ecm_result_file.c_str());
-
-    print("All done! Exiting.\n");
+    cleanup_and_exit();
 }
