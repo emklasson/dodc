@@ -52,6 +52,7 @@ extern char **environ; // For posix_spawnp.
 int process_wu_results();
 void check_quit();
 void cleanup_and_exit();
+void block_sigint();
 
 struct auto_method_t {
 	string method;
@@ -72,6 +73,14 @@ vector<auto_method_t> get_auto_methods() {
 	}
 
 	return methods;
+}
+
+/// @brief Blocks SIGINT in the current thread.
+void block_sigint() {
+    sigset_t sigset;
+    sigemptyset(&sigset);
+    sigaddset(&sigset, SIGINT);
+    pthread_sigmask(SIG_BLOCK, &sigset, nullptr);
 }
 
 bool dump_factor(factor_t f) {
@@ -166,6 +175,7 @@ bool submit_interval_passed() {
 }
 
 bool report_work_thread(string cmd) {
+    block_sigint();
     ++running_helper_threads;
     print("Reporting completed work... Thanks!\n");
     auto [success, exit_code] = spawn_and_wait(cmd);
@@ -187,6 +197,7 @@ bool report_work_thread(string cmd) {
 /// @param wget_cmd Name of wget command.
 /// @param result_file Name of temp file to store result in.
 void reserve_number_thread(string number, string cmd, string wget_cmd, string result_file) {
+    block_sigint();
     ++running_helper_threads;
 	print("Trying to reserve {}...\n", number);
 	auto [success, exit_code] = spawn_and_wait(cmd);
@@ -640,6 +651,7 @@ int process_wu_results() {
 }
 
 void process_workunit_thread(void *p) {
+    block_sigint();
     workunit_t *pwu = (workunit_t *)p;
 
     if (pwu->handler(*pwu)) {
