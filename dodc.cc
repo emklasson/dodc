@@ -639,7 +639,7 @@ int process_wu_results() {
     return found;
 }
 
-void process_workunit(void *p) {
+void process_workunit_thread(void *p) {
     workunit_t *pwu = (workunit_t *)p;
 
     if (pwu->handler(*pwu)) {
@@ -706,8 +706,8 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 		reserve_number(pwu->expr);
 	}
 
-    // _beginthread( process_workunit, 0, pwu );
-    thread t(process_workunit, pwu);
+    // _beginthread( process_workunit_thread, 0, pwu );
+    thread t(process_workunit_thread, pwu);
     t.detach();
 }
 
