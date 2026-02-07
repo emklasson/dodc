@@ -414,13 +414,13 @@ void read_live_config() {
 
     check_quit();
 
-    auto old_threads = cfg.worker_threads;
+    auto old_threads = cfg.workers;
     if (!cfg.read(live_filename, true)) {
         return;
     }
 
-    if (cfg.worker_threads != old_threads) {
-        adjust_worker_threads(old_threads, cfg.worker_threads);
+    if (cfg.workers != old_threads) {
+        adjust_worker_threads(old_threads, cfg.workers);
     }
 
     remove(live_filename.c_str());
@@ -738,7 +738,7 @@ void check_quit() {
 }
 
 void cleanup_and_exit() {
-    adjust_worker_threads(cfg.worker_threads, 0);
+    adjust_worker_threads(cfg.workers, 0);
 
     total_factors += process_wu_results();
     print("#factors found: {}\n", total_factors);
@@ -789,7 +789,7 @@ int main(int argc, char **argv) {
 
     print("Using factorization method {}\n", cfg.method);
     set_priority();
-    adjust_worker_threads(0, cfg.worker_threads);
+    adjust_worker_threads(0, cfg.workers);
 
     do {
         process_unsubmitted_factors(true);

@@ -7,7 +7,7 @@ using namespace std;
 class cfg_t : public cfg_base_t {
 public:
     string name;
-    long long worker_threads;
+    long long workers;
     bool recommended_work;
     string ecm_args;
     bool less_spam;
@@ -56,7 +56,7 @@ public:
     cfg_t() : cfg_base_t("dodc.cfg") {
         // Add configuration options with default values.
         add("name", name);
-        add("worker_threads", worker_threads, 4);
+        add("workers", workers, 4);
         add("recommended_work", recommended_work, false);
         add("ecm_args", ecm_args);
         add("less_spam", less_spam, true);
