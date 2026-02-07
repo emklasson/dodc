@@ -73,7 +73,9 @@ bool cfg_base_t::set(string source, string name, string value) {
             value = toupper(value);
             *bools[name] = (value == "TRUE" || value == "1" || value == "YES" || value == "ON");
         } else if (ints.count(name)) {
-            *ints[name] = stoll(value);
+            // Use stod for scientific notation support. Lose precision over
+            // 2^53-1 but that's fine.
+            *ints[name] = stod(value);
         } else if (floats.count(name)) {
             *floats[name] = stod(value);
         } else if (strings.count(name)) {
