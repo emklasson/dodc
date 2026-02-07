@@ -15,6 +15,7 @@
 + new "auto_reserve" and "reserve_url" settings to automatically reserve large
   numbers you're doing QS or NFS on.
 + added SIGINT handler to gracefully exit when Ctrl-C is pressed.
++ scientific notation for integer settings values.
 * overhauled config handling for better robustness and changed all setting names
   to snake_case instead of justwordssmushedtogether.
 * renamed dodc.ini to dodc.cfg.
