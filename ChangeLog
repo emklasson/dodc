@@ -1,6 +1,6 @@
------ v1.40, 04 Feb 2026
-+ change settings while dodc is running by writing them to dodc_live.ini using
-  the same syntax and parameters as dodc.ini. Very useful for changing e.g. nmax
+----- v1.40, 07 Feb 2026
++ change settings while dodc is running by writing them to dodc_live.cfg using
+  the same syntax and parameters as dodc.cfg. Very useful for changing e.g. nmax
   or worker_threads.
 + cado_snfs and cado_gnfs methods are now available if you've got a functional
   cado-nfs system set up. SNFS uses straight-forward polynomials created from
@@ -14,6 +14,10 @@
   numbers.
 + new "auto_reserve" and "reserve_url" settings to automatically reserve large
   numbers you're doing QS or NFS on.
++ added SIGINT handler to gracefully exit when Ctrl-C is pressed.
+* overhauled config handling for better robustness and changed all setting names
+  to snake_case instead of justwordssmushedtogether.
+* renamed dodc.ini to dodc.cfg.
 
 
 ----- v1.36, 21 Jan 2026
