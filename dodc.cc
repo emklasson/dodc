@@ -15,6 +15,7 @@ http://mklasson.com
 #include <cctype>
 #include <csignal>
 #include <ctime>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <map>
@@ -786,7 +787,9 @@ int main(int argc, char **argv) {
     print("  Look in dodc.cfg for available options.\n");
     signal(SIGINT, signal_handler);
     srand((uint)time(0));
-    if (!cfg.read()) {
+
+    // No config file is fine. A bad one is not.
+    if (filesystem::exists(cfg.filename) && !cfg.read()) {
 		return 1;
 	}
 
