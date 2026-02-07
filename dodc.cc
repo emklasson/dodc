@@ -36,6 +36,7 @@ using namespace std;
 counting_semaphore hsem_wu{0};
 mutex hmutex_wu; // Controls access to running_worker_threads.
 mutex hmutex_wu_result;
+mutex log_mutex; // Controls access to log.
 
 queue<workunit_t> wu_result_queue;
 set<int> running_worker_threads;        // Thread numbers used by running workers.
@@ -84,6 +85,30 @@ void block_sigint() {
     pthread_sigmask(SIG_BLOCK, &sigset, nullptr);
 }
 
+static bool log_prefix_newline = false;
+
+/// @brief Prints a formatted message to stdout.
+/// If the last message printed ended in '\r' then a newline is printed first
+/// unless this message also ends in '\r'.
+template<typename... Args>
+void log(string_view format, Args&&... args)
+{
+    lock_guard lock(log_mutex);
+    string s = vformat(format, make_format_args(args...));
+    if (s.empty()) {
+        return;
+    }
+
+    print("{}{}",
+        log_prefix_newline && (s.back() != '\r') ? "\n" : "",
+        s);
+    log_prefix_newline = s.back() == '\r';
+
+    if (log_prefix_newline) {
+        fflush(stdout);
+    }
+}
+
 bool dump_factor(factor_t f) {
     ofstream fout(cfg.submit_failure_file, ios::app);
     fout << "#method(" << f.method << ")" << "args(" << f.args << ")" << endl;
@@ -113,14 +138,14 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
 		+ "&submitter=" + urlencode("dodc " + version);
     remove(result_file.c_str());
 
-    print("Sending factors to server...\n");
+    log("Sending factors to server...\n");
     int r = system((cfg.wget_cmd
 		+ " -T " + to_string(cfg.internet_timeout * 60)
 		+ " -q --cache=off --output-document=\"" + result_file
 		+ "\" --post-data=\"" + postdata + "\" "
 		+ cfg.submit_url).c_str());
     if (r != 0) {
-        print("WARNING: wget returned {} while submitting factors. There was probably an error.\n", r);
+        log("WARNING: wget returned {} while submitting factors. There was probably an error.\n", r);
     }
 
     ifstream f(result_file);
@@ -145,7 +170,7 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
                             if (result == "new") {
                                 ++new_count;
                             } else if (result != "old" && result != "") {
-                                print("{} : {}\n", f.first.factorline, result);
+                                log("{} : {}\n", f.first.factorline, result);
                             }
                         }
                     }
@@ -155,9 +180,9 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
     }
 
     if (!successes) {
-        print("ERROR! Couldn't parse submission result.\n");
+        log("ERROR! Couldn't parse submission result.\n");
     } else {
-        print("{} new {}.\n", new_count, pluralise("factor", new_count));
+        log("{} new {}.\n", new_count, pluralise("factor", new_count));
     }
 
     return successes;
@@ -178,14 +203,14 @@ bool submit_interval_passed() {
 bool report_work_thread(string cmd) {
     block_sigint();
     ++running_helper_threads;
-    print("Reporting completed work... Thanks!\n");
+    log("Reporting completed work... Thanks!\n");
     auto [success, exit_code] = spawn_and_wait(cmd);
 
     if (success && exit_code != 0) {
         success = false;
-        print("WARNING: Wget returned {} while reporting work. There was probably an error.\n", exit_code);
+        log("WARNING: Wget returned {} while reporting work. There was probably an error.\n", exit_code);
     } else if (!success) {
-        print("ERROR: Couldn't report work.\n");
+        log("ERROR: Couldn't report work.\n");
     }
 
     --running_helper_threads;
@@ -200,10 +225,10 @@ bool report_work_thread(string cmd) {
 void reserve_number_thread(string number, string cmd, string wget_cmd, string result_file) {
     block_sigint();
     ++running_helper_threads;
-	print("Trying to reserve {}...\n", number);
+	log("Trying to reserve {}...\n", number);
 	auto [success, exit_code] = spawn_and_wait(cmd);
 	if (!success || exit_code != 0) {
-		print("WARNING: Problem running {} while reserving number.\n", wget_cmd);
+		log("WARNING: Problem running {} while reserving number.\n", wget_cmd);
 	}
 
 	ifstream f(result_file);
@@ -211,7 +236,7 @@ void reserve_number_thread(string number, string cmd, string wget_cmd, string re
 	bool handled = false;
 	while (getline(f, line)) {
 		if (line.find("I reserved the following number") != string::npos) {
-			print("{} reserved successfully.\n", number);
+			log("{} reserved successfully.\n", number);
 			handled = true;
 			break;
 		}
@@ -222,14 +247,14 @@ void reserve_number_thread(string number, string cmd, string wget_cmd, string re
 			pos += tag.length();
 			auto pos2 = line.find(".<br>", pos);
 			string who = pos2 != string::npos ? line.substr(pos, pos2 - pos) : line.substr(pos);
-			print("{} is already reserved by {}.\n", number, who);
+			log("{} is already reserved by {}.\n", number, who);
 			handled = true;
 			break;
 		}
 	}
 
 	if (!handled) {
-		print("Couldn't reserve {}.\n", number);
+		log("Couldn't reserve {}.\n", number);
 	}
 
 	f.close();
@@ -275,7 +300,7 @@ bool download_composites() {
         ss >> comma;
     }
 
-    print("Downloading composites...\n");
+    log("Downloading composites...\n");
     int r = system((cfg.wget_cmd
 		+ " -T " + to_string(cfg.internet_timeout * 60)
 		+ " -q --cache=off --output-document=\"" + cfg.composite_file
@@ -284,14 +309,14 @@ bool download_composites() {
 
     bool probablyerror = false;
     if (r != 0) {
-        print("WARNING: wget returned {} while downloading composites. There was probably an error.\n", r);
+        log("WARNING: wget returned {} while downloading composites. There was probably an error.\n", r);
         probablyerror = true;
     }
 
     if (cfg.use_gzip) {
         r = system((cfg.gzip_cmd + " -df " + cfg.composite_file + ".gz").c_str());
         if (r != 0) {
-            print("WARNING: gzip returned {} while unpacking composites. There was probably an error.\n", r);
+            log("WARNING: gzip returned {} while unpacking composites. There was probably an error.\n", r);
             probablyerror = true;
         }
     }
@@ -342,7 +367,7 @@ void process_unsubmitted_factors(bool forceattempt) {
     int succeeded = submit_factors(unsubmitted);
 
 	auto print_fail = []() {
-		print("Please submit the factors in {} manually\n"
+		log("Please submit the factors in {} manually\n"
 			"or wait and see if dodc manages to submit them automatically later.\n"
 			"Manual submit: {}\n",
 			cfg.submit_failure_file,
@@ -358,10 +383,10 @@ void process_unsubmitted_factors(bool forceattempt) {
     fin.close();
     remove(cfg.submit_failure_file.c_str());
     if (succeeded == unsubmitted.size()) {
-        print("Submitted all {} of your unsubmitted factors!\n", succeeded);
+        log("Submitted all {} of your unsubmitted factors!\n", succeeded);
         return;
     } else {
-        print("Submitted {} of your {} unsubmitted factors!\n", succeeded, unsubmitted.size());
+        log("Submitted {} of your {} unsubmitted factors!\n", succeeded, unsubmitted.size());
         print_fail();
     }
 
@@ -382,7 +407,7 @@ bool parse_cmdline(int argc, char **argv) {
             }
 
             if (j + 1 >= argc) {
-                print("ERROR: cmdline switch without argument: {}\n", argv[j]);
+                log("ERROR: cmdline switch without argument: {}\n", argv[j]);
                 return false;
             }
 
@@ -391,7 +416,7 @@ bool parse_cmdline(int argc, char **argv) {
 			}
             j += 2;
         } else {
-            print("WARNING: unrecognized cmdline argument: {}\n", argv[j]);
+            log("WARNING: unrecognized cmdline argument: {}\n", argv[j]);
             ++j;
         }
     }
@@ -402,7 +427,7 @@ bool parse_cmdline(int argc, char **argv) {
 void adjust_worker_threads(int from, int to) {
     if (from > to) {
         for (int j = from; j > to; --j) {
-            print("Waiting for {} worker {} to finish...\n",
+            log("Waiting for {} worker {} to finish...\n",
 				j - to,
 				pluralise("thread", j - to));
             hsem_wu.acquire();
@@ -410,11 +435,11 @@ void adjust_worker_threads(int from, int to) {
         if (!to) {
             // Process results before idling in case user aborts.
             total_factors += process_wu_results();
-            print("No workers left. Idling...\n");
+            log("No workers left. Idling...\n");
         }
     } else {
         int count = to - from;
-        print("Adding {} worker {}.\n", count, pluralise("thread", count));
+        log("Adding {} worker {}.\n", count, pluralise("thread", count));
         hsem_wu.release(count);
     }
 }
@@ -454,24 +479,24 @@ bool verify_method(string method) {
 bool verify_args() {
     bool ok = true;
     if (cfg.name == "") {
-        print("ERROR: you must specify a name. Use Anonymous if you don't want to be credited.\n");
+        log("ERROR: you must specify a name. Use Anonymous if you don't want to be credited.\n");
         ok = false;
     }
 
     if (cfg.nmin > cfg.nmax) {
-        print("ERROR: nmin={} > nmax={} doesn't make sense.\n", cfg.nmin, cfg.nmax);
+        log("ERROR: nmin={} > nmax={} doesn't make sense.\n", cfg.nmin, cfg.nmax);
         ok = false;
     }
 
     cfg.method = toupper(cfg.method);
     if (!verify_method(cfg.method)) {
-        print("ERROR: unrecognized method: {}\n", cfg.method);
+        log("ERROR: unrecognized method: {}\n", cfg.method);
         ok = false;
     }
 
 	for (auto& am : get_auto_methods()) {
 		if (!verify_method(am.method)) {
-			print("ERROR: unrecognized automethod: {}\n", am.method);
+			log("ERROR: unrecognized automethod: {}\n", am.method);
 			ok = false;
 		}
 	}
@@ -479,13 +504,13 @@ bool verify_args() {
     if (cfg.method == "P-1") {
         cfg.ecm_args += " -pm1";
         if (cfg.curves != 1) {
-            print("WARNING: running {} P-1 tests doesn't make sense. Forcing <curves> to 1.\n", cfg.curves);
+            log("WARNING: running {} P-1 tests doesn't make sense. Forcing <curves> to 1.\n", cfg.curves);
             cfg.curves = 1;
         }
     } else if (cfg.method == "P+1") {
         cfg.ecm_args += " -pp1";
         if (cfg.curves > 3) {
-            print("WARNING: running {} P+1 tests is probably a waste. Try 3 instead.\n", cfg.curves);
+            log("WARNING: running {} P+1 tests is probably a waste. Try 3 instead.\n", cfg.curves);
         }
     }
 
@@ -501,7 +526,7 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
         factorline << foundfactor << " | " << inputnumber;
     }
 
-    print("{}\t({} digits)\n", factorline.str(), foundfactor.size());
+    log("{}\t({} digits)\n", factorline.str(), foundfactor.size());
     fout << factorline.str() << endl;
     if (cfg.auto_submit) {
         dump_factor(factor_t(factorline.str(), method, args));
@@ -518,7 +543,7 @@ int init_composites() {
         ifstream f(cfg.composite_file);
         getline(f, line);
         if (line.substr(0, 1) != "#") {
-            print("WARNING: trying to do recommended work, but didn't get any settings from server.\n");
+            log("WARNING: trying to do recommended work, but didn't get any settings from server.\n");
         } else {
             stringstream ss(line.substr(1));
             ss >> ws;
@@ -642,7 +667,7 @@ int process_wu_results() {
         if (submit_interval_passed()) {
             process_unsubmitted_factors(true);
         } else {
-            print("{} saved in {} for now.\n",
+            log("{} saved in {} for now.\n",
 				pluralise("Factor", found),
 				cfg.submit_failure_file);
         }
@@ -686,13 +711,12 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     }
 
     string tab = string(8 - (msg.size() % 8), ' ');
-    print("[{}] {}{}[{}]    {}",
+    log("[{}] {}{}[{}]    {}",
 		wu.threadnumber,
 		msg,
 		tab,
 		method,
-		cfg.less_spam ? "\r" : "\n");
-    fflush(stdout);
+		cfg.less_spam ? '\r' : '\n');
 
     if (method == "MSIEVE_QS") {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
@@ -745,7 +769,7 @@ void set_priority(int priority = 0) {
 
 void check_quit() {
     if (quit.test()) {
-        print("Caught SIGINT. Finishing current work units before exiting...\n");
+        log("Caught SIGINT. Finishing current work units before exiting...\n");
         cleanup_and_exit();
     }
 }
@@ -754,14 +778,14 @@ void cleanup_and_exit() {
     adjust_worker_threads(cfg.workers, 0);
 
     total_factors += process_wu_results();
-    print("#factors found: {}\n", total_factors);
+    log("#factors found: {}\n", total_factors);
 
     // Do one last valiant attempt to submit any unsubmitted factors.
     process_unsubmitted_factors(true);
 
     while (running_helper_threads > 0) {
 		int n = running_helper_threads;
-		print("Waiting for {} helper {} to finish...\n",
+		log("Waiting for {} helper {} to finish...\n",
 			n,
 			pluralise("thread", n));
         this_thread::sleep_for(chrono::seconds(5));
@@ -770,7 +794,7 @@ void cleanup_and_exit() {
     remove(cfg.wget_result_file.c_str());
     remove(cfg.ecm_result_file.c_str());
 
-    print("All done! Exiting.\n");
+    log("All done! Exiting.\n");
     exit(0);
 }
 
@@ -781,10 +805,10 @@ void signal_handler(int signum) {
 }
 
 int main(int argc, char **argv) {
-    print("dodc {} by Mikael Klasson\n", version);
-    print("usage: dodc [<settings>]\n");
-    print("  Make sure you're using the right username.\n");
-    print("  Look in dodc.cfg for available options.\n");
+    log("dodc {} by Mikael Klasson\n", version);
+    log("usage: dodc [<settings>]\n");
+    log("  Make sure you're using the right username.\n");
+    log("  Look in dodc.cfg for available options.\n");
     signal(SIGINT, signal_handler);
     srand((uint)time(0));
 
@@ -798,11 +822,11 @@ int main(int argc, char **argv) {
     }
 
     if (!verify_args()) {
-        print("Fix your settings and try again. Exiting.\n");
+        log("Fix your settings and try again. Exiting.\n");
         return 1;
     }
 
-    print("Using factorization method {}\n", cfg.method);
+    log("Using factorization method {}\n", cfg.method);
     set_priority();
     adjust_worker_threads(0, cfg.workers);
 
@@ -814,16 +838,16 @@ int main(int argc, char **argv) {
         }
 
         int ccnt = init_composites();
-        print("Found {} composites in {}.\n", ccnt, cfg.composite_file);
+        log("Found {} composites in {}.\n", ccnt, cfg.composite_file);
         if (!ccnt) {
             // Composite file is empty.
             if (cfg.fallback && !cfg.recommended_work) {
-                print("Switching to fallback mode.\n");
+                log("Switching to fallback mode.\n");
                 cfg.recommended_work = true;
                 cfg.auto_download = true;
                 continue;
             } else {
-                print("Work complete. Exiting.\n");
+                log("Work complete. Exiting.\n");
                 break;
             }
         }
@@ -852,7 +876,7 @@ int main(int argc, char **argv) {
             process_unsubmitted_factors(false);
         }
 
-        print("#factors found: {}    \n", total_factors);
+        log("#factors found: {}\n", total_factors);
         if (cfg.report_work) {
             string url = cfg.report_url
 				+ "?method=" + urlencode(cfg.method)
@@ -871,7 +895,7 @@ int main(int argc, char **argv) {
         }
 
         cfg.b1 += cfg.b1_increase;
-        print("Increasing B1 to {}\n", cfg.b1);
+        log("Increasing B1 to {}\n", cfg.b1);
     } while (cfg.loop);
 
     cleanup_and_exit();
