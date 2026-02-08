@@ -1,15 +1,8 @@
 #include "dodc.h"
+#include "multiprocessing.h"
 #include "string_utils.h"
-#include <algorithm>
-#include <cctype>
-#include <ctime>
 #include <fstream>
-#include <map>
-#include <set>
-#include <spawn.h>
-#include <sstream>
 #include <string>
-#include <vector>
 using namespace std;
 
 /// @brief Runs GMP-ECM on a workunit.

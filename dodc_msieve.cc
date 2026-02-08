@@ -1,13 +1,7 @@
 #include "dodc.h"
-#include <algorithm>
-#include <cctype>
-#include <ctime>
 #include <fstream>
-#include <map>
-#include <set>
 #include <sstream>
 #include <string>
-#include <vector>
 using namespace std;
 
 /// @brief Runs msieve on a workunit.
