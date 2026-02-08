@@ -91,5 +91,5 @@ string scientify(string n) {
 }
 
 string pluralise(const string &singular, int count) {
-    return singular + (count > 1 ? "s" : "");
+    return singular + (count != 1 ? "s" : "");
 }
