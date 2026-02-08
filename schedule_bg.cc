@@ -6,7 +6,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+#if defined(__APPLE__)
     setpriority(PRIO_DARWIN_PROCESS, 0, PRIO_DARWIN_BG); // Only schedules on efficiency cores.
+#endif
+
     auto [success, exit_code] = spawn_and_wait(argv[1]);
     return exit_code;
 }

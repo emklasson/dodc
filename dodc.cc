@@ -761,9 +761,10 @@ void set_priority(int priority = 0) {
 #else // linux or macOS
     setpriority(PRIO_PROCESS, 0, 20 - 10 * priority);
 
-    // macOS:
+#if defined(__APPLE__)
     // setpriority( PRIO_DARWIN_PROCESS, 0, PRIO_DARWIN_BG ); // Only schedules on efficiency cores.
     // pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);
+#endif
 #endif
 }
 
