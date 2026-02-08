@@ -4,7 +4,6 @@
 #include <ctime>
 #include <fstream>
 #include <map>
-#include <print>
 #include <set>
 #include <sstream>
 #include <string>
@@ -26,7 +25,7 @@ bool do_workunit_msieve(workunit_t &wu) {
         }
 
         if (!spawn_and_wait(wu.cmdline).first) {
-            print("ERROR: Failed spawning msieve.\n");
+            log("ERROR: Failed spawning msieve.\n");
             return false;
         }
 

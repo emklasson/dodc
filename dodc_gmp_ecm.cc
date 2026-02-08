@@ -5,7 +5,6 @@
 #include <ctime>
 #include <fstream>
 #include <map>
-#include <print>
 #include <set>
 #include <spawn.h>
 #include <sstream>
@@ -25,7 +24,7 @@ bool do_workunit_gmp_ecm(workunit_t &wu) {
     }
 
     if (!spawn_and_wait(wu.cmdline).first) {
-        print("ERROR: Failed spawning ecm.\n");
+        log("ERROR: Failed spawning ecm.\n");
         return false;
     }
 

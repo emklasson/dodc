@@ -49,6 +49,8 @@ string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"
 
 int total_factors = 0; // Total number of found factors.
 
+bool log_prefix_newline = false; // Used by log().
+
 extern char **environ; // For posix_spawnp.
 
 int process_wu_results();
@@ -83,30 +85,6 @@ void block_sigint() {
     sigemptyset(&sigset);
     sigaddset(&sigset, SIGINT);
     pthread_sigmask(SIG_BLOCK, &sigset, nullptr);
-}
-
-static bool log_prefix_newline = false;
-
-/// @brief Prints a formatted message to stdout.
-/// If the last message printed ended in '\r' then a newline is printed first
-/// unless this message also ends in '\r'.
-template<typename... Args>
-void log(string_view format, Args&&... args)
-{
-    lock_guard lock(log_mutex);
-    string s = vformat(format, make_format_args(args...));
-    if (s.empty()) {
-        return;
-    }
-
-    print("{}{}",
-        log_prefix_newline && (s.back() != '\r') ? "\n" : "",
-        s);
-    log_prefix_newline = s.back() == '\r';
-
-    if (log_prefix_newline) {
-        fflush(stdout);
-    }
 }
 
 bool dump_factor(factor_t f) {
