@@ -108,7 +108,7 @@ def parse_expression(expression):
             d = -d
         return [k, a, n, d]
     except ValueError:
-        print(f"Couldn't parse expression: '{expression}'.")
+        print(f"Error: Couldn't parse expression: '{expression}'.")
         sys.exit(1)
 
 
@@ -131,7 +131,7 @@ def main(expression, threads, gnfs, cofactor):
         with open("dodc_cado_nfs.cfg", "r") as f:
             cfg = json.load(f)
     except json.JSONDecodeError:
-        print("Error decoding cfg file. Exiting...")
+        print("Error: Couldn't decode cfg file. Exiting...")
         sys.exit(1)
 
     if threads:
@@ -165,7 +165,7 @@ def main(expression, threads, gnfs, cofactor):
     if all(c.isdecimal() or c == " " for c in result_lines[-1].strip()):
         print(f"factors: {result_lines[-1].strip()}")
     else:
-        print(f"ERROR: no factors found. Check {dodc_cado_path/log_filename}.")
+        print(f"Error: No factors found. Check {dodc_cado_path/log_filename}.")
 
 
 if __name__ == "__main__":
