@@ -4,14 +4,14 @@
 #include <sstream>
 using namespace std;
 
-string trim(const string &s) {
+string trim(string_view s) {
     auto start = s.find_first_not_of(" \t\r\n");
     auto end = s.find_last_not_of(" \t\r\n");
-    if (start == string::npos) {
+    if (start == s.npos) {
         return "";
     }
 
-    return s.substr(start, end - start + 1);
+    return string(s.substr(start, end - start + 1));
 }
 
 string toupper(const string &in) {
@@ -44,7 +44,7 @@ uint_fast64_t touint64(string s) {
     return n;
 }
 
-bool isnumber(string s) {
+bool isnumber(string_view s) {
     for (auto j = 0; j < s.size(); ++j) {
         if (!isdigit(s[j])) {
             return false;
@@ -55,10 +55,10 @@ bool isnumber(string s) {
 }
 
 char tohex(int n) {
-    return string("0123456789abcdef")[n % 16];
+    return "0123456789abcdef"[n % 16];
 }
 
-string urlencode(string in) {
+string urlencode(string_view in) {
     string s;
     for (auto j = 0; j < in.size(); ++j) {
         if (isalnum(in[j])) {
@@ -90,6 +90,6 @@ string scientify(string n) {
     return n + "e" + tostring(e);
 }
 
-string pluralise(string singular, int count) {
+string pluralise(const string &singular, int count) {
     return singular + (count > 1 ? "s" : "");
 }
