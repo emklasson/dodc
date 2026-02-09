@@ -34,10 +34,10 @@ def write_poly(filename, k, a, n, d, cfg):
         f.write(f"Y0: {-root}\n")
 
 
-def write_cado_params(f_out, param_dir: Path, digits: int):
-    target_digits = digits * 2 / 3
+def write_cado_params(f_out, param_dir: Path, cfg):
+    target_digits = float(cfg['sd'])
     best_fit = None
-    best_filename:Path = None
+    best_filename: Path = None
     for f in param_dir.iterdir():
         if f.is_file() and f.name.startswith("params.c"):
             d = int(f.name.split(".c")[1])
@@ -53,7 +53,7 @@ def write_cado_params(f_out, param_dir: Path, digits: int):
     replace_prefixes = ["tasks.lim0", "tasks.lim1", "tasks.lpb0", "tasks.lpb1",
                         "tasks.sieve.mfb0", "tasks.sieve.mfb1",
                         "tasks.sieve.ncurves0", "tasks.sieve.ncurves1"]
-    f_out.write(f"# SNFS digits: {digits}. Target digits: {target_digits}. Using cado-nfs file {best_filename.name} as base.\n\n")
+    f_out.write(f"# SNFS digits: {len(str(cfg['number']))}. Target digits: {target_digits}. Using cado-nfs file {best_filename.name} as base.\n\n")
     with open(best_filename, "r") as f_in:
         for line in f_in.readlines():
             if line.strip() == "" or any(line.startswith(prefix) for prefix in skip_prefixes):
@@ -65,7 +65,7 @@ def write_cado_params(f_out, param_dir: Path, digits: int):
             f_out.write(line)
 
 
-def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, k, a, n, d, cfg):
+def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, cfg):
     threads = cfg['tasks.threads']
     with open(param_filename, "w") as f:
         f.write(f"# {cfg['expression']}\n")
@@ -75,7 +75,7 @@ def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, 
         f.write(f"tasks.sieve.las.threads = {threads}\n")
         f.write(f"tasks.polyselect.import = {dodc_cado_path/poly_filename}\n\n")
 
-        write_cado_params(f, Path(cfg['cado_nfs_path'])/"parameters/factor/", len(str(k * a ** n + d)))
+        write_cado_params(f, Path(cfg['cado_nfs_path'])/"parameters/factor/", cfg)
 
         f.write('''
 # We supply the SNFS polynomial, so we don't want any polynomial selection
@@ -88,7 +88,7 @@ tasks.sieve.sqside = 0
 ''')
 
 
-def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg, number):
+def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg):
     log_path = dodc_cado_path/filename.with_suffix(".log")
     with open(filename, "w") as f:
         f.write("#!/bin/sh\n\n")
@@ -99,7 +99,7 @@ def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg
         redirect_stderr = f"2>> {log_path}"
 
         if cfg['gnfs']:
-            arg = f"-t {cfg['tasks.threads']} {number}"
+            arg = f"-t {cfg['tasks.threads']} {cfg['number']}"
         else:
             arg = dodc_cado_path/param_filename
 
@@ -141,14 +141,19 @@ def main(cfg):
     if cfg['cofactor'] == 0:
         cfg['cofactor'] = number
 
+    if 'sd' not in cfg:
+        cfg['sd'] = int(len(str(number)) * cfg['sf'])
+
+    cfg['number'] = number
+
     dir = "cado_nfs"
     os.makedirs(dir, exist_ok=True)
     os.chdir(dir)
     dodc_cado_path = Path(os.getcwd())
     if not cfg['gnfs']:
         write_poly(poly_filename, k, a, n, d, cfg)
-        write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, cfg)
-    write_script(sh_filename, param_filename, dodc_cado_path, cfg, number)
+        write_parameters(param_filename, poly_filename, dodc_cado_path, cfg)
+    write_script(sh_filename, param_filename, dodc_cado_path, cfg)
 
     result = subprocess.run(["sh", f"./{sh_filename}"], capture_output=True, text=True)
 
@@ -178,6 +183,9 @@ if __name__ == "__main__":
         print("  Options:")
         print("    -c <cofactor>  The composite to factor for SNFS.")
         print("    -g             Use GNFS.")
+        print("    -sf <sf>       Set SNFS difficulty conversion factor. Defaults to 2/3.")
+        print("    -sd <n>        Set SNFS difficulty. Determines parameters chosen. Defaults to #digits * <sf>.")
+        print("                   -sf is ignored if -sd is set.")
         print("    -t <threads>   The max number of threads to use.")
         sys.exit(1)
 
@@ -191,6 +199,7 @@ if __name__ == "__main__":
     cfg['cofactor'] = 0
     cfg['gnfs'] = False
     cfg['expression'] = ""
+    cfg['sf'] = 2/3
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-t" and i + 1 < len(sys.argv):
@@ -202,6 +211,12 @@ if __name__ == "__main__":
         elif sys.argv[i] == "-g":
             cfg['gnfs'] = True
             i += 1
+        elif sys.argv[i] == "-sd" and i + 1 < len(sys.argv):
+            cfg['sd'] = int(sys.argv[i + 1])
+            i += 2
+        elif sys.argv[i] == "-sf" and i + 1 < len(sys.argv):
+            cfg['sf'] = float(sys.argv[i + 1])
+            i += 2
         else:
             cfg['expression'] = sys.argv[i].strip()
             i += 1
