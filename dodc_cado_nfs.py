@@ -9,9 +9,9 @@ import subprocess
 import sys
 
 
-def write_poly(filename, k, a, n, d, expression, cfg):
+def write_poly(filename, k, a, n, d, cfg):
     with open(filename, "w") as f:
-        f.write(f"# Polynomial for {expression}\n")
+        f.write(f"# Polynomial for {cfg['expression']}\n")
         k_poly = k
         d_poly = d
         n_poly = n
@@ -65,10 +65,10 @@ def write_cado_params(f_out, param_dir: Path, digits: int):
             f_out.write(line)
 
 
-def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, k, a, n, d, expression, cfg):
+def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, k, a, n, d, cfg):
     threads = cfg['tasks.threads']
     with open(param_filename, "w") as f:
-        f.write(f"# {expression}\n")
+        f.write(f"# {cfg['expression']}\n")
         f.write(f"name = {poly_filename.stem}\n")
         f.write(f"N = {cfg['cofactor']}\n\n")
         f.write(f"tasks.threads = {threads}\n")
@@ -124,13 +124,12 @@ def parse_expression(expression):
         sys.exit(1)
 
 
-def main(expression, cfg):
-    expression = expression.strip()
-    if cfg['gnfs'] and all(c.isdecimal() for c in expression):
-        number = expression
+def main(cfg):
+    if cfg['gnfs'] and all(c.isdecimal() for c in cfg['expression']):
+        number = cfg['expression']
         filename_stem = Path(f"c{len(number)}_{number}")
     else:
-        [k, a, n, d] = parse_expression(expression)
+        [k, a, n, d] = parse_expression(cfg['expression'])
         number = k * a ** n + d
         filename_stem = Path(f"{k}t{a}r{n}{'p' if d > 0 else 'm'}{abs(d)}")
 
@@ -147,8 +146,8 @@ def main(expression, cfg):
     os.chdir(dir)
     dodc_cado_path = Path(os.getcwd())
     if not cfg['gnfs']:
-        write_poly(poly_filename, k, a, n, d, expression, cfg)
-        write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, expression, cfg)
+        write_poly(poly_filename, k, a, n, d, cfg)
+        write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, cfg)
     write_script(sh_filename, param_filename, dodc_cado_path, cfg, number)
 
     result = subprocess.run(["sh", f"./{sh_filename}"], capture_output=True, text=True)
@@ -186,11 +185,12 @@ if __name__ == "__main__":
         with open("dodc_cado_nfs.cfg", "r") as f:
             cfg = json.load(f)
     except json.JSONDecodeError:
-        print("Error: Couldn't decode cfg file. Exiting...")
+        print("Error: Couldn't decode cfg file.")
         sys.exit(1)
 
     cfg['cofactor'] = 0
     cfg['gnfs'] = False
+    cfg['expression'] = ""
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-t" and i + 1 < len(sys.argv):
@@ -203,7 +203,11 @@ if __name__ == "__main__":
             cfg['gnfs'] = True
             i += 1
         else:
-            expression = sys.argv[i]
+            cfg['expression'] = sys.argv[i].strip()
             i += 1
 
-    main(expression, cfg)
+    if cfg['expression'] == "":
+        print("Error: No expression provided.")
+        sys.exit(1)
+
+    main(cfg)
