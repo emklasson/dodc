@@ -182,12 +182,13 @@ def main(expression, threads, gnfs, cofactor):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python dodc_cado_nfs.py <expression> [-t <threads>] [-c cofactor] [-g]")
-        print("  <expression>\tAn expression on the form <k*a^n+d>, <k*a^n-d>, or an integer.")
-        print("    E.g. 17*2^453+1")
-        print("  -t <threads>\tThe max number of threads to use.")
-        print("  -c <cofactor>\tThe composite to factor for SNFS.")
-        print("  -g\tUse GNFS.")
+        print("Usage: python dodc_cado_nfs.py [options] <expression>")
+        print("  <expression>     An expression on the form <k*a^n+d>, <k*a^n-d>, or an integer.")
+        print("                   E.g. 17*2^453+1\n")
+        print("  Options:")
+        print("    -c <cofactor>  The composite to factor for SNFS.")
+        print("    -g             Use GNFS.")
+        print("    -t <threads>   The max number of threads to use.")
         sys.exit(1)
 
     threads = None
