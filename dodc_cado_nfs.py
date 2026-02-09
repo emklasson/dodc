@@ -88,7 +88,7 @@ tasks.sieve.sqside = 0
 ''')
 
 
-def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg, gnfs, number):
+def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg, number):
     log_path = dodc_cado_path/filename.with_suffix(".log")
     with open(filename, "w") as f:
         f.write("#!/bin/sh\n\n")
@@ -98,7 +98,7 @@ def write_script(filename: Path, param_filename: Path, dodc_cado_path: Path, cfg
         # cado-nfs is using stderr to write everything except the factors.
         redirect_stderr = f"2>> {log_path}"
 
-        if gnfs:
+        if cfg['gnfs']:
             arg = f"-t {cfg['tasks.threads']} {number}"
         else:
             arg = dodc_cado_path/param_filename
@@ -124,9 +124,9 @@ def parse_expression(expression):
         sys.exit(1)
 
 
-def main(expression, threads, gnfs, cofactor):
+def main(expression, cfg):
     expression = expression.strip()
-    if gnfs and all(c.isdecimal() for c in expression):
+    if cfg['gnfs'] and all(c.isdecimal() for c in expression):
         number = expression
         filename_stem = Path(f"c{len(number)}_{number}")
     else:
@@ -139,26 +139,17 @@ def main(expression, threads, gnfs, cofactor):
     sh_filename = filename_stem.with_suffix(".sh")
     log_filename = filename_stem.with_suffix(".log")
 
-    try:
-        with open("dodc_cado_nfs.cfg", "r") as f:
-            cfg = json.load(f)
-    except json.JSONDecodeError:
-        print("Error: Couldn't decode cfg file. Exiting...")
-        sys.exit(1)
-
-    if threads:
-        cfg['tasks.threads'] = threads
-
-    cfg['cofactor'] = cofactor if cofactor != 0 else number
+    if cfg['cofactor'] == 0:
+        cfg['cofactor'] = number
 
     dir = "cado_nfs"
     os.makedirs(dir, exist_ok=True)
     os.chdir(dir)
     dodc_cado_path = Path(os.getcwd())
-    if not gnfs:
+    if not cfg['gnfs']:
         write_poly(poly_filename, k, a, n, d, expression, cfg)
         write_parameters(param_filename, poly_filename, dodc_cado_path, k, a, n, d, expression, cfg)
-    write_script(sh_filename, param_filename, dodc_cado_path, cfg, gnfs, number)
+    write_script(sh_filename, param_filename, dodc_cado_path, cfg, number)
 
     result = subprocess.run(["sh", f"./{sh_filename}"], capture_output=True, text=True)
 
@@ -191,22 +182,28 @@ if __name__ == "__main__":
         print("    -t <threads>   The max number of threads to use.")
         sys.exit(1)
 
-    threads = None
-    gnfs = False
-    cofactor = 0
+    try:
+        with open("dodc_cado_nfs.cfg", "r") as f:
+            cfg = json.load(f)
+    except json.JSONDecodeError:
+        print("Error: Couldn't decode cfg file. Exiting...")
+        sys.exit(1)
+
+    cfg['cofactor'] = 0
+    cfg['gnfs'] = False
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-t" and i + 1 < len(sys.argv):
-            threads = int(sys.argv[i + 1])
+            cfg['tasks.threads'] = int(sys.argv[i + 1])
             i += 2
         elif sys.argv[i] == "-c" and i + 1 < len(sys.argv):
-            cofactor = int(sys.argv[i + 1])
+            cfg['cofactor'] = int(sys.argv[i + 1])
             i += 2
         elif sys.argv[i] == "-g":
-            gnfs = True
+            cfg['gnfs'] = True
             i += 1
         else:
             expression = sys.argv[i]
             i += 1
 
-    main(expression, threads, gnfs, cofactor)
+    main(expression, cfg)
