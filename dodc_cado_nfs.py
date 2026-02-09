@@ -34,6 +34,37 @@ def write_poly(filename, k, a, n, d, expression, cfg):
         f.write(f"Y0: {-root}\n")
 
 
+def write_cado_params(f_out, param_dir: Path, digits: int):
+    target_digits = digits * 2 / 3
+    best_fit = None
+    best_filename:Path = None
+    for f in param_dir.iterdir():
+        if f.is_file() and f.name.startswith("params.c"):
+            d = int(f.name.split(".c")[1])
+            if best_fit is None or (abs(d - target_digits) < best_fit):
+                best_fit = abs(d - target_digits)
+                best_filename = f
+
+    if best_filename is None:
+        print(f"Error: Couldn't find a cado-nfs parameter file suitable for {target_digits} digits.")
+        sys.exit(1)
+
+    skip_prefixes = ["#","name =", "tasks.polyselect", "tasks.sieve.lambda"]
+    replace_prefixes = ["tasks.lim0", "tasks.lim1", "tasks.lpb0", "tasks.lpb1",
+                        "tasks.sieve.mfb0", "tasks.sieve.mfb1",
+                        "tasks.sieve.ncurves0", "tasks.sieve.ncurves1"]
+    f_out.write(f"# SNFS digits: {digits}. Target digits: {target_digits}. Using cado-nfs file {best_filename.name} as base.\n\n")
+    with open(best_filename, "r") as f_in:
+        for line in f_in.readlines():
+            if line.strip() == "" or any(line.startswith(prefix) for prefix in skip_prefixes):
+                continue
+            for prefix in replace_prefixes:
+                if line.startswith(prefix):
+                    line = f"{prefix[:-1]}{int(prefix[-1]) ^ 1}{line[len(prefix):]}"
+                    break
+            f_out.write(line)
+
+
 def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, k, a, n, d, expression, cfg):
     threads = cfg['tasks.threads']
     with open(param_filename, "w") as f:
@@ -42,37 +73,18 @@ def write_parameters(param_filename, poly_filename: Path, dodc_cado_path: Path, 
         f.write(f"N = {cfg['cofactor']}\n\n")
         f.write(f"tasks.threads = {threads}\n")
         f.write(f"tasks.sieve.las.threads = {threads}\n")
+        f.write(f"tasks.polyselect.import = {dodc_cado_path/poly_filename}\n\n")
+
+        write_cado_params(f, Path(cfg['cado_nfs_path'])/"parameters/factor/", len(str(k * a ** n + d)))
+
         f.write('''
-# The remaining values in this file are from the sample parameters for F9 = 2^512+1
-# They seem to work reasonably well for k*2^n+-1 with n around 450-500 though.
-
-tasks.lim0 = 2300000
-tasks.lim1 = 1200000
-tasks.lpb0 = 26
-tasks.lpb1 = 26
-
 # We supply the SNFS polynomial, so we don't want any polynomial selection
 # to happen. To this effect we set admin and admax both to 0.
 tasks.polyselect.admin = 0
 tasks.polyselect.admax = 0
 tasks.polyselect.adrange = 0
-''')
-        f.write(f"tasks.polyselect.import = {dodc_cado_path/poly_filename}\n")
-        f.write('''
-# Sieving parameters
-tasks.sieve.mfb0 = 52
-tasks.sieve.mfb1 = 52
-#tasks.sieve.lambda0 = 2.1  # Better to let cado choose
-#tasks.sieve.lambda1 = 2.2  # Better to let cado choose
-tasks.I = 12
-tasks.qmin = 2000000
-tasks.sieve.qrange = 5000
-tasks.sieve.sqside = 0
 
-# linear algebra
-tasks.linalg.m = 64
-tasks.linalg.n = 64
-tasks.linalg.characters.nchar = 50
+tasks.sieve.sqside = 0
 ''')
 
 
