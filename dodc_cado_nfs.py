@@ -199,7 +199,8 @@ if __name__ == "__main__":
     cfg['cofactor'] = 0
     cfg['gnfs'] = False
     cfg['expression'] = ""
-    cfg['sf'] = 2/3
+    cfg['sf'] = 2/3 if 'sf' not in cfg else float(cfg['sf'])
+
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "-t" and i + 1 < len(sys.argv):
