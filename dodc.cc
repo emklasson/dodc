@@ -77,6 +77,14 @@ vector<auto_method_t> get_auto_methods() {
 	return methods;
 }
 
+/// @brief Checks if method is deterministic.
+/// @param method Method name.
+/// @return True if deterministic, otherwise false.
+bool is_deterministic_method(string method) {
+    return method.contains("QS")
+        || method.contains("NFS");
+}
+
 /// @brief Blocks SIGINT in the current thread.
 void block_sigint() {
     sigset_t sigset;
@@ -714,8 +722,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 
 	if (cfg.auto_reserve > 0
 		&& pwu->inputnumber.size() >= cfg.auto_reserve
-		&& (pwu->method.contains("NFS")
-			|| pwu->method.contains("QS"))) {
+		&& is_deterministic_method(pwu->method)) {
 		reserve_number(pwu->expr);
 	}
 
