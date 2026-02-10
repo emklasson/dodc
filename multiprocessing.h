@@ -7,5 +7,6 @@ using namespace std;
 
 pair<int, pid_t> spawn(string cmdline);
 pair<bool, int> spawn_and_wait(string cmdline);
+void terminate_self_and_spawned();
 
 #endif

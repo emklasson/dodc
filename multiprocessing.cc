@@ -1,5 +1,7 @@
 #include "multiprocessing.h"
 #include <array>
+#include <csignal>
+#include <print>
 #include <utility>
 using namespace std;
 
@@ -44,4 +46,10 @@ pair<bool, int> spawn_and_wait(string cmdline) {
     }
 
     return {success, exit_code};
+}
+
+/// @brief Terminates process and all spawned child processes.
+void terminate_self_and_spawned() {
+    print("Terminating process group...\n");
+    killpg(0, SIGTERM);
 }

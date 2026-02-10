@@ -779,6 +779,7 @@ void signal_handler(int signum) {
     if (signum == SIGINT) {
         if (quit.test_and_set()) {
             log("Caught second SIGINT. Exiting immediately!\n");
+            terminate_self_and_spawned();
             exit(1);
         }
     }
