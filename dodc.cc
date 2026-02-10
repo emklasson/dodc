@@ -481,7 +481,7 @@ bool verify_args() {
         ok = false;
     }
 
-	for (auto& am : get_auto_methods()) {
+	for (const auto &am : get_auto_methods()) {
 		if (!verify_method(am.method)) {
 			log("ERROR: unrecognized automethod: {}\n", am.method);
 			ok = false;
@@ -659,7 +659,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     wu.expr = expr;
 
     string method = cfg.method;
-	for (auto& am : get_auto_methods()) {
+	for (const auto &am : get_auto_methods()) {
 		if (am.minsize <= inputnumber.size() && am.maxsize >= inputnumber.size()) {
 			method = am.method;
 			break;
