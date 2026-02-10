@@ -1,3 +1,9 @@
+----- v1.50, 10 Feb 2026
++ chooses SNFS parameters dynamically.
++ exits immediately if Ctrl-C is pressed twice.
+* proper skew for SNFS poly.
+
+
 ----- v1.40, 07 Feb 2026
 + change settings while dodc is running by writing them to dodc_live.cfg using
   the same syntax and parameters as dodc.cfg. Very useful for changing e.g. nmax
