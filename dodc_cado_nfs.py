@@ -142,7 +142,7 @@ def main(cfg):
         cfg['cofactor'] = number
 
     if 'sd' not in cfg:
-        cfg['sd'] = int(len(str(number)) * cfg['sf'])
+        cfg['sd'] = float(len(str(number)) * cfg['sf'])
 
     cfg['number'] = number
 
@@ -212,7 +212,7 @@ if __name__ == "__main__":
             cfg['gnfs'] = True
             i += 1
         elif sys.argv[i] == "-sd" and i + 1 < len(sys.argv):
-            cfg['sd'] = int(sys.argv[i + 1])
+            cfg['sd'] = float(sys.argv[i + 1])
             i += 2
         elif sys.argv[i] == "-sf" and i + 1 < len(sys.argv):
             cfg['sf'] = float(sys.argv[i + 1])
