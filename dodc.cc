@@ -5,6 +5,7 @@ http://mklasson.com
 */
 
 #include "cfg_t.h"
+#include "composite_t.h"
 #include "dodc.h"
 #include "dodc_cado_nfs.h"
 #include "dodc_gmp_ecm.h"
@@ -50,6 +51,8 @@ int total_factors = 0; // Total number of found factors.
 bool log_prefix_newline = false; // Used by log().
 
 extern char **environ; // For posix_spawnp.
+
+vector<composite_t> composites; // Composites to factor.
 
 int process_wu_results();
 void check_quit();
@@ -517,63 +520,40 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
     }
 }
 
-/// @brief Initialises the composites file. Shuffling if "order = random".
+/// @brief Initialises the composites. Shuffling if "order = random".
 /// Processes recommended work settings from server if "recommended_work = yes".
-/// @return Number of composites in the file.
-int init_composites() {
-    int cnt = 0;
+void init_composites() {
     string line;
+    composites.clear();
+
     if (cfg.recommended_work) {
         ifstream f(cfg.composite_file);
         getline(f, line);
-        if (line.substr(0, 1) != "#") {
+        if (!line.starts_with("#")) {
             log("WARNING: trying to do recommended work, but didn't get any settings from server.\n");
         } else {
-            stringstream ss(line.substr(1));
-            ss >> ws;
-            string fn, val;
-            while (getline(ss, fn, '(')) {
-                getline(ss, val, ')');
-                cfg.set("recommended work", fn, val);
+            for (const auto &arg : composite_t::get_all_arguments(line)) {
+                cfg.set("recommended work", arg.first, arg.second);
             }
         }
     }
 
     ifstream f(cfg.composite_file);
-    if (cfg.order == "random") {
-        vector<pair<string, string>> v;
-        string comment;
-        while (getline(f, line)) {
-            if (line.substr(0, 1) != "#") {
-                ++cnt;
-                v.push_back(make_pair(line, comment));
-                comment = "";
-            } else {
-                comment = line;
-            }
-        }
-
-        f.close();
-        random_device rd;
-        mt19937 g(rd());
-        shuffle(v.begin(), v.end(), g);
-        ofstream fout(cfg.composite_file);
-        for (auto j = 0; j < v.size(); ++j) {
-            if (v[j].second != "") {
-                fout << v[j].second << endl;
-            }
-
-            fout << v[j].first << endl;
-        }
-    } else {
-        while (getline(f, line)) {
-            if (line.substr(0, 1) != "#") {
-                ++cnt;
-            }
+    string comment;
+    while (getline(f, line)) {
+        if (!line.starts_with("#")) {
+            composites.push_back(composite_t(line, comment));
+            comment = "";
+        } else {
+            comment = line;
         }
     }
 
-    return cnt;
+    if (cfg.order == "random") {
+        random_device rd;
+        mt19937 g(rd());
+        shuffle(composites.begin(), composites.end(), g);
+    }
 }
 
 void free_workunit(workunit_t *pwu) {
@@ -825,9 +805,9 @@ int main(int argc, char **argv) {
             download_composites();
         }
 
-        int ccnt = init_composites();
-        log("Found {} composites in {}.\n", ccnt, cfg.composite_file);
-        if (!ccnt) {
+        init_composites();
+        log("Found {} composites in {}.\n", composites.size(), cfg.composite_file);
+        if (!composites.size()) {
             // Composite file is empty.
             if (cfg.fallback && !cfg.recommended_work) {
                 log("Switching to fallback mode.\n");
@@ -840,26 +820,8 @@ int main(int argc, char **argv) {
             }
         }
 
-        ifstream fin(cfg.composite_file);
-        bool enhanced = false;
-        string line, expr;
-        while (getline(fin, line)) {
-            if (line.substr(0, 1) == "#") {
-                stringstream ss(line.substr(1));
-                ss >> ws;
-                string fn, val;
-                while (getline(ss, fn, '(')) {
-                    getline(ss, val, ')');
-                    if (fn == "expr") {
-                        expr = val;
-                        enhanced = true;
-                    }
-                }
-
-                continue;
-            }
-
-            do_workunit(line, enhanced, expr);
+        for (const auto &c : composites) {
+            do_workunit(c.inputnumber, c.expr != "", c.expr);
             total_factors += process_wu_results();
             process_unsubmitted_factors(false);
         }
