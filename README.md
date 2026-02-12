@@ -1,13 +1,17 @@
 # dodc
 
-The program tries to factor composites from https://mklasson.com/factors/ using factoring tools like `gmp-ecm`, `msieve`, and `cado-nfs`. You'll need to build and/or install those yourself on your system.
+The program tries to factor composites from https://mklasson.com/factors/ (or any others you put in a local file) using factoring tools like `gmp-ecm`, `msieve`, and `cado-nfs`. You'll need to build and/or install those yourself on your system.
+
+Once set up the program can download new composites, factor them, and submit the results automatically.
 
 
 ## Supported platforms
 
 - macOS: Builds and runs fine on Sonoma with Apple Silicon.
-- Linux: Untested. Probably quite easy to get up and running.
-- Windows: Untested. Used to work back in 2013. Probably doable.
+- Linux: Untested. Should be quite easy to get up and running.
+- Windows: Untested. Used to work back in 2013. Can probably be made to build without too much hassle.
+
+If you get it to build on Linux or Windows then please submit a PR with your changes.
 
 
 ## Quick install
