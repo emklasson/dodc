@@ -42,6 +42,8 @@ set<int> running_worker_threads;        // Thread numbers used by running worker
 atomic<int> running_helper_threads = 0; // Number of running helper threads.
 atomic_flag quit = false;               // Set to true by SIGINT handler to exit program.
 
+set<string> guaranteed_in_progress; // Composites being factored with methods guaranteeing success.
+
 cfg_t cfg;  // Configuration data from .cfg file and cmdline.
 
 string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
@@ -80,10 +82,10 @@ vector<auto_method_t> get_auto_methods() {
 	return methods;
 }
 
-/// @brief Checks if method is deterministic.
+/// @brief Checks if method is guaranteed to factor a composite.
 /// @param method Method name.
-/// @return True if deterministic, otherwise false.
-bool is_deterministic_method(string method) {
+/// @return True if guaranteed to factor, otherwise false.
+bool is_guaranteed_factorisation(string method) {
     return method.contains("QS")
         || method.contains("NFS");
 }
@@ -542,6 +544,11 @@ void init_composites() {
     string comment;
     while (getline(f, line)) {
         if (!line.starts_with("#")) {
+            if (guaranteed_in_progress.count(line)) {
+                comment = "";
+                continue;
+            }
+
             composites.push_back(composite_t(line, comment));
             comment = "";
         } else {
@@ -603,6 +610,9 @@ int process_wu_results() {
         stringstream ss(wu.result.factor);
         string factor;
         while (ss >> factor) {
+            // Refrain from erasing to make sure we don't factor again in case of server issues.
+            //guaranteed_in_progress.erase(wu.inputnumber);
+
             found_factor(factor, wu.enhanced, wu.expr, wu.inputnumber, wu.result.method, wu.result.args);
 
             // Trial factor found factor if it's small.
@@ -700,11 +710,13 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 
     wu.schedule_bg = wu.threadnumber > cfg.pcore_workers;
 
-	if (cfg.auto_reserve > 0
-		&& pwu->inputnumber.size() >= cfg.auto_reserve
-		&& is_deterministic_method(pwu->method)) {
-		reserve_number(pwu->expr);
-	}
+    if (is_guaranteed_factorisation(pwu->method)) {
+        guaranteed_in_progress.insert(pwu->inputnumber);
+        if (cfg.auto_reserve > 0
+            && pwu->inputnumber.size() >= cfg.auto_reserve) {
+            reserve_number(pwu->expr);
+        }
+    }
 
     // _beginthread( process_workunit_thread, 0, pwu );
     thread t(process_workunit_thread, pwu);
