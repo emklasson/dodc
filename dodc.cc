@@ -442,14 +442,15 @@ void read_live_config() {
 
     auto old_threads = cfg.workers;
     if (!cfg.read(live_filename, true)) {
+        remove(live_filename.c_str());
         return;
     }
+
+    remove(live_filename.c_str());
 
     if (cfg.workers != old_threads) {
         adjust_worker_threads(old_threads, cfg.workers);
     }
-
-    remove(live_filename.c_str());
 }
 
 /// @brief Verifies that a method is known and supported.
