@@ -111,7 +111,6 @@ bool dump_factor(factor_t f) {
 // Sets factors[].second to false for each submitted factor.
 // Returns number of submitted factors.
 int submit_factors(vector<pair<factor_t, bool>> &factors) {
-    int successes = 0;
     string factorlines;
     for (auto i = 0; i < factors.size(); ++i) {
         factorlines += (i ? "\n" : "")
@@ -128,18 +127,19 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
     remove(result_file.c_str());
 
     log("Sending factors to server...\n");
-    int r = system((cfg.wget_cmd
+    auto [success, exit_code] = spawn_and_wait(cfg.wget_cmd
 		+ " -T " + to_string(cfg.internet_timeout * 60)
 		+ " -q --cache=off --output-document=\"" + result_file
 		+ "\" --post-data=\"" + postdata + "\" "
-		+ cfg.submit_url).c_str());
-    if (r != 0) {
-        log("WARNING: wget returned {} while submitting factors. There was probably an error.\n", r);
+		+ cfg.submit_url);
+    if (!success || exit_code != 0) {
+        log("WARNING: wget returned {} while submitting factors. There was probably an error.\n", exit_code);
     }
 
     ifstream f(result_file);
     string line;
     string prefix = "JSONResults:";
+    int successes = 0;
     int new_count = 0;
     while (getline(f, line)) {
         if (line.substr(0, prefix.size()) == prefix) {
@@ -290,22 +290,23 @@ bool download_composites() {
     }
 
     log("Downloading composites...\n");
-    int r = system((cfg.wget_cmd
+    bool probablyerror = false;
+
+	auto [success, exit_code] = spawn_and_wait(cfg.wget_cmd
 		+ " -T " + to_string(cfg.internet_timeout * 60)
 		+ " -q --cache=off --output-document=\"" + cfg.composite_file
 		+ (cfg.use_gzip ? ".gz" : "") + "\" \""
-		+ url + "\"").c_str());
+		+ url + "\"");
 
-    bool probablyerror = false;
-    if (r != 0) {
-        log("WARNING: wget returned {} while downloading composites. There was probably an error.\n", r);
+    if (!success || exit_code != 0) {
+        log("WARNING: wget returned {} while downloading composites. There was probably an error.\n", exit_code);
         probablyerror = true;
-    }
+	}
 
     if (cfg.use_gzip) {
-        r = system((cfg.gzip_cmd + " -df " + cfg.composite_file + ".gz").c_str());
-        if (r != 0) {
-            log("WARNING: gzip returned {} while unpacking composites. There was probably an error.\n", r);
+        auto [success, exit_code] = spawn_and_wait(cfg.gzip_cmd + " -df " + cfg.composite_file + ".gz");
+        if (!success || exit_code != 0) {
+            log("WARNING: gzip returned {} while unpacking composites. There was probably an error.\n", exit_code);
             probablyerror = true;
         }
     }
