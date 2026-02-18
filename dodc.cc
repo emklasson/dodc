@@ -857,8 +857,10 @@ int main(int argc, char **argv) {
             t.detach();
         }
 
-        cfg.b1 += cfg.b1_increase;
-        log("Increasing B1 to {}\n", cfg.b1);
+        if (cfg.loop) {
+            cfg.b1 += cfg.b1_increase;
+            log("Increasing B1 to {}\n", cfg.b1);
+        }
     } while (cfg.loop);
 
     cleanup_and_exit();
