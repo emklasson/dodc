@@ -13,6 +13,7 @@ http://mklasson.com
 #include "multiprocessing.h"
 #include "string_utils.h"
 #include <algorithm>
+#include <cmath>
 #include <csignal>
 #include <ctime>
 #include <filesystem>
@@ -859,7 +860,9 @@ int main(int argc, char **argv) {
         }
 
         if (cfg.loop) {
-            cfg.b1 += cfg.b1_increase;
+            cfg.b1 += cfg.b1_increase == -1
+                ? sqrt(cfg.b1) * cfg.curves
+                : cfg.b1_increase;
             log("Increasing B1 to {}\n", cfg.b1);
         }
     } while (cfg.loop);

@@ -1,3 +1,7 @@
+----- v1.51, 24 Feb 2026
++ b1_increase = -1 adds sqrt(b1) * curves when looping.
+
+
 ----- v1.50, 10 Feb 2026
 + chooses SNFS parameters dynamically.
 + exits immediately if Ctrl-C is pressed twice.
