@@ -849,7 +849,8 @@ int main(int argc, char **argv) {
 				+ "&nmin=" + tostring(cfg.nmin)
 				+ "&nmax=" + tostring(cfg.nmax)
 				+ "&b1=" + tostring(cfg.b1)
-				+ "&curves=" + tostring(cfg.curves);
+				+ "&curves=" + tostring(cfg.curves)
+				+ "&name=" + urlencode(cfg.name);
             string cmd = cfg.wget_cmd
 				+ " -T " + to_string(cfg.internet_timeout * 60)
 				+ " -q --cache=off"
