@@ -47,17 +47,18 @@ bool cfg_base_t::read(string filename, bool silent_fail) {
     while (getline(f, line)) {
 		string arg, val;
         stringstream ss(line);
-        getline(ss, arg, '=');
-        ss >> ws;
-        arg = trim(arg);
-        if (!getline(ss, val)) {
+        if (!getline(ss, arg, '=')) {
             continue;
         }
 
-        val = trim(val);
-        if (arg.substr(0, 2) == "//" || arg.substr(0, 1) == "#" || arg.substr(0, 1) == ";") {
+        arg = trim(arg);
+        if (arg.starts_with("//") || arg.starts_with("#") || arg.starts_with(";")) {
             continue;
         }
+
+        ss >> ws;
+        getline(ss, val);
+        val = trim(val);
 
         if (!set("cfg", arg, val)) {
             return false;
