@@ -7,7 +7,7 @@
 #include <string>
 using namespace std;
 
-const string version = "v1.51";
+const string version = "v1.52";
 
 extern bool log_prefix_newline;
 extern mutex log_mutex;

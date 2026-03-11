@@ -1,3 +1,8 @@
+----- v1.52, 11 Mar 2026
++ b1_increase = -f adds f * sqrt(b1) * curves when looping.
++ prints a status line after each loop showing total curves etc.
+
+
 ----- v1.51, 24 Feb 2026
 + b1_increase = -1 adds sqrt(b1) * curves when looping.
 * use all msieve factors instead of just the first one.
