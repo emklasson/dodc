@@ -46,8 +46,6 @@ cfg_t cfg;  // Configuration data from .cfg file and cmdline.
 
 string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
 
-int total_factors = 0; // Total number of found factors.
-
 bool log_prefix_newline = false; // Used by log().
 
 extern char **environ; // For posix_spawnp.
@@ -58,6 +56,15 @@ int process_wu_results();
 void check_quit();
 void cleanup_and_exit();
 void block_sigint();
+
+struct run_data_t {
+    int found_factors;        // Total number of found factors.
+    int curves;               // Total number of curves run.
+    int curves_per_composite; // Total number of curves run per composite.
+    int loops;                // Total number of loops through composites.
+};
+
+run_data_t run_data; // Stats for current dodc run.
 
 struct auto_method_t {
 	string method;
@@ -422,7 +429,7 @@ void adjust_worker_threads(int from, int to) {
         }
         if (!to) {
             // Process results before idling in case user aborts.
-            total_factors += process_wu_results();
+            run_data.found_factors += process_wu_results();
             log("No workers left. Idling...\n");
         }
     } else {
@@ -706,6 +713,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         wu.method = method;
         wu.b1 = tostring(cfg.b1);
         wu.handler = do_workunit_gmp_ecm;
+        run_data.curves += cfg.curves;
     }
 
     wu.schedule_bg = wu.threadnumber > cfg.pcore_workers;
@@ -752,8 +760,8 @@ void check_quit() {
 void cleanup_and_exit() {
     adjust_worker_threads(cfg.workers, 0);
 
-    total_factors += process_wu_results();
-    log("#factors found: {}\n", total_factors);
+    run_data.found_factors += process_wu_results();
+    log("#factors found: {}\n", run_data.found_factors);
 
     // Do one last valiant attempt to submit any unsubmitted factors.
     process_unsubmitted_factors(true);
@@ -833,11 +841,10 @@ int main(int argc, char **argv) {
 
         for (const auto &c : composites) {
             do_workunit(c.inputnumber, c.expr != "", c.expr);
-            total_factors += process_wu_results();
+            run_data.found_factors += process_wu_results();
             process_unsubmitted_factors(false);
         }
 
-        log("#factors found: {}\n", total_factors);
         if (cfg.report_work) {
             string url = cfg.report_url
 				+ "?method=" + urlencode(cfg.method)
@@ -857,10 +864,17 @@ int main(int argc, char **argv) {
         }
 
         if (cfg.loop) {
+            ++run_data.loops;
+            run_data.curves_per_composite += cfg.curves;
             cfg.b1 += cfg.b1_increase < 0
                 ? sqrt(cfg.b1) * abs(cfg.b1_increase) * cfg.curves
                 : cfg.b1_increase;
-            log("Increasing B1 to {}\n", cfg.b1);
+            log("Loops: {}. Factors: {}. Curves: {} ({} per c). B1: {}\n",
+                run_data.loops,
+                run_data.found_factors,
+                run_data.curves,
+                run_data.curves_per_composite,
+                cfg.b1);
         }
     } while (cfg.loop);
 
