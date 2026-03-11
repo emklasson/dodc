@@ -16,12 +16,19 @@ def write_poly(filename, k, a, n, d, cfg):
         d_poly = d
         n_poly = n
         n_mod = n % 5
-        if n_mod < 3:
-            k_poly = k * a ** n_mod
-            n_poly = n - n_mod
-        else:
-            d_poly = d * a ** (5 - n_mod)
-            n_poly = n + 5 - n_mod
+
+        # In practice multiplying k and adjusting n downwards seems to give
+        # marginally more relations than multiplying d and adjusting n upwards,
+        # even for n = 3 or 4 mod 5. So just do the former.
+        k_poly = k * a ** n_mod
+        n_poly = n - n_mod
+        # if n_mod < 3:
+        #     k_poly = k * a ** n_mod
+        #     n_poly = n - n_mod
+        # else:
+        #     d_poly = d * a ** (5 - n_mod)
+        #     n_poly = n + 5 - n_mod
+
         f.write(f"# adjusted: {k_poly} * {a}^{n_poly} {'+' if d_poly > 0 else '-'} {abs(d_poly)}\n")
         root = a**int(n_poly / 5)
         f.write(f"# root {a}^{int(n_poly / 5)} = {root}\n")
