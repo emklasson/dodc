@@ -15,7 +15,7 @@ public:
 	string method;
 	string auto_method;
 	long long b1;
-	long long b1_increase;
+	double b1_increase;
 	long long curves;
 	long long nmin;
 	long long nmax;
@@ -64,7 +64,7 @@ public:
         add("method", method, "ECM");
         add("auto_method", auto_method);
         add("b1", b1, 1000000);
-        add("b1_increase", b1_increase, 1000);
+        add("b1_increase", b1_increase, -3);
         add("curves", curves, 1);
         add("nmin", nmin, 1);
         add("nmax", nmax, 1000);
