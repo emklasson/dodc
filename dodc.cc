@@ -30,9 +30,6 @@ http://mklasson.com
 #include <vector>
 using namespace std;
 
-// #include <windows.h>
-// #include <process.h>
-
 counting_semaphore hsem_wu{0};
 mutex hmutex_wu; // Controls access to running_worker_threads.
 mutex hmutex_wu_result;
@@ -721,7 +718,6 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         }
     }
 
-    // _beginthread( process_workunit_thread, 0, pwu );
     thread t(process_workunit_thread, pwu);
     t.detach();
 }
