@@ -46,7 +46,8 @@ cfg_t cfg;  // Configuration data from .cfg file and cmdline.
 
 string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
 
-bool log_prefix_newline = false; // Used by log().
+bool log_prefix_newline = false; // Used by log_save_r().
+int log_pad_width = 0;           // Used by log().
 
 extern char **environ; // For posix_spawnp.
 
@@ -197,9 +198,12 @@ bool submit_interval_passed() {
 bool report_work_thread(string cmd) {
     block_sigint();
     ++running_helper_threads;
-    log("Reporting completed work... Thanks!\n");
-    auto [success, exit_code] = spawn_and_wait(cmd);
 
+    if (!cfg.less_spam) {
+        log("Reporting completed work... Thanks!\n");
+    }
+
+    auto [success, exit_code] = spawn_and_wait(cmd);
     if (success && exit_code != 0) {
         success = false;
         log("WARNING: Wget returned {} while reporting work. There was probably an error.\n", exit_code);
@@ -294,7 +298,7 @@ bool download_composites() {
         ss >> comma;
     }
 
-    log("Downloading composites...\n");
+    log("Downloading composites...{}", cfg.less_spam ? '\r' : '\n');
     bool probablyerror = false;
 
 	auto [success, exit_code] = spawn_and_wait(cfg.wget_cmd
@@ -422,7 +426,7 @@ bool parse_cmdline(int argc, char **argv) {
 void adjust_worker_threads(int from, int to) {
     if (from > to) {
         for (int j = from; j > to; --j) {
-            log("Waiting for {} worker {} to finish...\n",
+            log("Waiting for {} worker {} to finish...\r",
 				j - to,
 				pluralise("thread", j - to));
             hsem_wu.acquire();
@@ -761,14 +765,13 @@ void cleanup_and_exit() {
     adjust_worker_threads(cfg.workers, 0);
 
     run_data.found_factors += process_wu_results();
-    log("#factors found: {}\n", run_data.found_factors);
 
     // Do one last valiant attempt to submit any unsubmitted factors.
     process_unsubmitted_factors(true);
 
     while (running_helper_threads > 0) {
 		int n = running_helper_threads;
-		log("Waiting for {} helper {} to finish...\n",
+		log("Waiting for {} helper {} to finish...\r",
 			n,
 			pluralise("thread", n));
         this_thread::sleep_for(chrono::seconds(5));
@@ -777,7 +780,7 @@ void cleanup_and_exit() {
     remove(cfg.wget_result_file.c_str());
     remove(cfg.ecm_result_file.c_str());
 
-    log("All done! Exiting.\n");
+    log("Factors found: {}\n", run_data.found_factors);
     exit(0);
 }
 
@@ -825,7 +828,13 @@ int main(int argc, char **argv) {
         }
 
         init_composites();
-        log("Found {} composites in {}.\n", composites.size(), cfg.composite_file);
+        log("Loops: {}. Factors: {}. Composites: {}. Curves: {} ({} per c). B1: {}\n",
+            run_data.loops,
+            run_data.found_factors,
+            composites.size(),
+            run_data.curves,
+            run_data.curves_per_composite,
+            cfg.b1);
         if (!composites.size()) {
             // Composite file is empty.
             if (cfg.fallback && !cfg.recommended_work) {
@@ -869,12 +878,6 @@ int main(int argc, char **argv) {
             cfg.b1 += cfg.b1_increase < 0
                 ? sqrt(cfg.b1) * abs(cfg.b1_increase) * cfg.curves
                 : cfg.b1_increase;
-            log("Loops: {}. Factors: {}. Curves: {} ({} per c). B1: {}\n",
-                run_data.loops,
-                run_data.found_factors,
-                run_data.curves,
-                run_data.curves_per_composite,
-                cfg.b1);
         }
     } while (cfg.loop);
 

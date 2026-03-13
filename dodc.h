@@ -10,6 +10,7 @@ using namespace std;
 const string version = "v1.52";
 
 extern bool log_prefix_newline;
+extern int log_pad_width;
 extern mutex log_mutex;
 
 struct factor_t {
@@ -45,7 +46,7 @@ struct workunit_t {
 /// If the last message printed ended in '\r' then a newline is printed first
 /// unless this message also ends in '\r'.
 template<typename... Args>
-void log(string_view format, Args&&... args)
+void log_save_r(string_view format, Args&&... args)
 {
     lock_guard lock(log_mutex);
     string s = vformat(format, make_format_args(args...));
@@ -60,6 +61,36 @@ void log(string_view format, Args&&... args)
 
     if (log_prefix_newline) {
         fflush(stdout);
+    }
+}
+
+/// @brief Prints a formatted message to stdout.
+/// Pads output to overwrite any previous message ending in '\r'.
+/// If the message contains neither '\r' nor '\n' then it's printed as is.
+template<typename... Args>
+void log(string_view format, Args&&... args)
+{
+    lock_guard lock(log_mutex);
+    string s = vformat(format, make_format_args(args...));
+    if (s.empty()) {
+        return;
+    }
+
+    auto i = s.find_first_of("\r\n");
+    if (i == string::npos) {
+        print("{}", s);
+    } else {
+        print("{:{}}{}",
+            s.substr(0, i),
+            log_pad_width,
+            s.substr(i));
+    }
+
+    if (s.back() != '\n') {
+        fflush(stdout);
+        log_pad_width = s.size();
+    } else {
+        log_pad_width = 0;
     }
 }
 
