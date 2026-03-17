@@ -777,9 +777,6 @@ void cleanup_and_exit() {
         this_thread::sleep_for(chrono::seconds(5));
     }
 
-    remove(cfg.wget_result_file.c_str());
-    remove(cfg.ecm_result_file.c_str());
-
     log("Factors found: {}\n", run_data.found_factors);
     exit(0);
 }
