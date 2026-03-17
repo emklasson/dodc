@@ -526,7 +526,7 @@ void found_factor(string foundfactor, bool enhanced, string expr, string inputnu
         factorline << foundfactor << " | " << inputnumber;
     }
 
-    log("{}\t({} digits)\n", factorline.str(), foundfactor.size());
+    log("{}    ({} digits)\n", factorline.str(), foundfactor.size());
     fout << factorline.str() << endl;
     if (cfg.auto_submit) {
         dump_factor(factor_t(factorline.str(), method, args));
@@ -696,7 +696,7 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     }
 
     string tab = string(8 - (msg.size() % 8), ' ');
-    log("[{}] {}{}[{}]    {}",
+    log("[{}] {}{}[{}]{}",
 		wu.threadnumber,
 		msg,
 		tab,
@@ -816,7 +816,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    log("Using factorization method {}\n", cfg.method);
+    log("Using factorisation method {}\n", cfg.method);
     set_priority();
     adjust_worker_threads(0, cfg.workers);
 
