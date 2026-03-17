@@ -7,6 +7,7 @@ using namespace std;
 
 string trim(string_view s);
 string toupper(const string &in);
+string tolower(const string &in);
 string tostring(long long n);
 string toyesno(bool b);
 int toint(string s);

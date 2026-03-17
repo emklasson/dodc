@@ -20,6 +20,12 @@ string toupper(const string &in) {
     return s;
 }
 
+string tolower(const string &in) {
+    string s = in;
+    for_each(s.begin(), s.end(), [](char &c) { c = tolower((unsigned char)c); });
+    return s;
+}
+
 string toyesno(bool b) {
     return b ? "yes" : "no";
 }
