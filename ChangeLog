@@ -1,6 +1,7 @@
 ----- v1.??, 17 Mar 2026
 + new "result_file_prefix" setting permanently saves all ECM, P-1, and P+1
   output to file. Set to empty to skip.
+* reduce screen spam even further when "less_spam" is on.
 
 
 ----- v1.52, 11 Mar 2026
