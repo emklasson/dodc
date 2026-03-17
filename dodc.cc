@@ -700,7 +700,10 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
     if (enhanced) {
         msg = format("Factoring {} c{}", expr, inputnumber.size());
     } else {
-        msg = format("Factoring {}", inputnumber);
+        msg = format("Factoring {}{} c{}",
+            inputnumber.substr(0, 10),
+            inputnumber.size() > 10 ? "..." : "",
+            inputnumber.size());
     }
 
     string tab = string(8 - (msg.size() % 8), ' ');
