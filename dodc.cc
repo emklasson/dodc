@@ -577,6 +577,14 @@ void init_composites() {
 void free_workunit(workunit_t *pwu) {
     lock_guard lock(hmutex_wu);
 
+    // Permanently save output of ECM, P-1, and P+1 runs.
+    if (!cfg.result_file_prefix.empty()
+        && (pwu->method == "ECM" || pwu->method == "P-1" || pwu->method == "P+1")) {
+        ofstream flog(format("{}{}", cfg.result_file_prefix, tolower(pwu->method)), ios::app);
+        ifstream ftmp(pwu->tempfile);
+        flog << ftmp.rdbuf();
+    }
+
     running_worker_threads.erase(pwu->threadnumber);
     delete pwu;
     hsem_wu.release();

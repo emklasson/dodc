@@ -52,6 +52,7 @@ public:
 	string submit_failure_file;
 	string wget_result_file;
 	string ecm_result_file;
+    string result_file_prefix;
 
     cfg_t() : cfg_base_t("dodc.cfg") {
         // Add configuration options with default values.
@@ -101,6 +102,7 @@ public:
         add("submit_failure_file", submit_failure_file, "dodc_unsubmitted_factors.txt");
         add("wget_result_file", wget_result_file, "dodc_wget_result");
         add("ecm_result_file", ecm_result_file, "dodc_ecm_result");
+        add("result_file_prefix", result_file_prefix, "dodc_results_");
     }
 };
 
