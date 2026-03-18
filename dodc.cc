@@ -115,8 +115,8 @@ bool dump_factor(factor_t f) {
 // format: "#method(methodname)args(args)".
 // Failures must be handled by caller as factors will not be saved in here.
 // Sets factors[].second to false for each submitted factor.
-// Returns number of submitted factors.
-int submit_factors(vector<pair<factor_t, bool>> &factors) {
+// Returns std::pair(number of successful submissions, number of new factors).
+std::pair<int, int> submit_factors(vector<pair<factor_t, bool>> &factors) {
     string factorlines;
     for (auto i = 0; i < factors.size(); ++i) {
         factorlines += (i ? "\n" : "")
@@ -132,7 +132,7 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
 		+ "&submitter=" + urlencode("dodc " + version);
     remove(result_file.c_str());
 
-    log("Sending factors to server...\n");
+    log("Sending factors to server...{}", cfg.less_spam ? '\r' : '\n');
     auto [success, exit_code] = spawn_and_wait(cfg.wget_cmd
 		+ " -T " + to_string(cfg.internet_timeout * 60)
 		+ " -q --cache=off --output-document=\"" + result_file
@@ -176,11 +176,9 @@ int submit_factors(vector<pair<factor_t, bool>> &factors) {
 
     if (!successes) {
         log("ERROR! Couldn't parse submission result.\n");
-    } else {
-        log("{} new {}.\n", new_count, pluralise("factor", new_count));
     }
 
-    return successes;
+    return {successes, new_count};
 }
 
 //  Returns true if submit_interval has passed since last time that happened.
@@ -363,7 +361,7 @@ void process_unsubmitted_factors(bool forceattempt) {
         return;
     }
 
-    int succeeded = submit_factors(unsubmitted);
+    auto [succeeded, new_count] = submit_factors(unsubmitted);
 
 	auto print_fail = []() {
 		log("Please submit the factors in {} manually\n"
@@ -382,10 +380,10 @@ void process_unsubmitted_factors(bool forceattempt) {
     fin.close();
     remove(cfg.submit_failure_file.c_str());
     if (succeeded == unsubmitted.size()) {
-        log("Submitted all {} of your unsubmitted factors!\n", succeeded);
+        log("Submitted all {} of your unsubmitted factors. {} new.\n", succeeded, new_count);
         return;
     } else {
-        log("Submitted {} of your {} unsubmitted factors!\n", succeeded, unsubmitted.size());
+        log("Submitted {} of your {} unsubmitted factors. {} new.\n", succeeded, unsubmitted.size(), new_count);
         print_fail();
     }
 
