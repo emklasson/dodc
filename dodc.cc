@@ -432,11 +432,16 @@ void adjust_worker_threads(int from, int to) {
         if (!to) {
             // Process results before idling in case user aborts.
             run_data.found_factors += process_wu_results();
-            log("No workers left. Idling...\n");
+            log("No workers left. Idling...\r");
+        } else {
+            log("Now {} worker {}.\r", to, pluralise("thread", to));
         }
     } else {
         int count = to - from;
-        log("Adding {} worker {}.\n", count, pluralise("thread", count));
+        log("Adding {} worker {}. Now {}.\r",
+            count,
+            pluralise("thread", count),
+            to);
         hsem_wu.release(count);
     }
 }
