@@ -2,8 +2,10 @@
 #define __cfg_base_t_h_included
 
 #include <map>
+#include <print>
 #include <string>
 using namespace std;
+using LogFunc = void(*)(std::string_view);
 
 class cfg_base_t {
 private:
@@ -12,9 +14,27 @@ private:
     map<string, double *> floats;
     map<string, string *> strings;
 
+    LogFunc logger;
+
+    template<typename... Args>
+    void log(string_view format, Args&&... args) {
+        string s = vformat(format, make_format_args(args...));
+        if (logger) {
+            logger(s);
+        } else {
+            print("{}", s);
+        }
+    }
+
 public:
     string filename;
     cfg_base_t(string filename);
+
+    /// @brief Sets a custom logging function to use instead of print.
+    /// @param func Logging function, taking a single string_view argument.
+    void set_logger(LogFunc func) {
+        logger = func;
+    }
 
     void add(string name, bool &var, bool val = false);
     void add(string name, long long &var, long long val = 0);

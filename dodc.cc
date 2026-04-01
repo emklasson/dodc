@@ -807,6 +807,7 @@ int main(int argc, char **argv) {
     log("  Look in dodc.cfg for available options.\n");
     signal(SIGINT, signal_handler);
     srand((uint)time(0));
+    cfg.set_logger(log);
 
     // No config file is fine. A bad one is not.
     if (filesystem::exists(cfg.filename) && !cfg.read()) {

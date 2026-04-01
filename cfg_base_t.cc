@@ -1,7 +1,6 @@
 #include "cfg_base_t.h"
 #include "string_utils.h"
 #include <fstream>
-#include <print>
 #include <sstream>
 using namespace std;
 
@@ -37,7 +36,7 @@ bool cfg_base_t::read(string filename, bool silent_fail) {
     ifstream f(filename);
     if (!f.is_open()) {
         if (!silent_fail) {
-            print("ERROR: couldn't open config file: {}\n", filename);
+            log("ERROR: couldn't open config file: {}\n", filename);
         }
 
         return false;
@@ -82,14 +81,14 @@ bool cfg_base_t::set(string source, string name, string value) {
         } else if (strings.count(name)) {
             *strings[name] = value;
         } else {
-            print("ERROR: unrecognized option in {}: '{}'\n", source, name);
+            log("ERROR: unrecognized option in {}: '{}'\n", source, name);
             return false;
         }
     } catch (...) {
-        print("ERROR: error converting config value: {} = {}\n", name, value);
+        log("ERROR: error converting config value: {} = {}\n", name, value);
         return false;
     }
 
-    print("{}: {} = {}\n", source, name, value);
+    log("{}: {} = {}\n", source, name, value);
     return true;
 }
