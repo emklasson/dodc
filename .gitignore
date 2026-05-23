@@ -11,7 +11,7 @@ dodc_factors.txt
 dodc_composites
 dodc_unsubmitted_factors.txt
 
-dodc_*_result*
+dodc_*result*
 msieve*.log
 msieve*.dat
 dodc_cado_nfs_*
