@@ -34,7 +34,7 @@ def write_poly(filename, k, a, n, d, cfg):
         f.write(f"# root {a}^{int(n_poly / 5)} = {root}\n")
         f.write(f"# poly x - {root}\n")
         f.write(f"n: {cfg['cofactor']}\n")
-        f.write(f"skew: {(d_poly / k_poly) ** (1 / 5)}\n")
+        f.write(f"skew: {(abs(d_poly) / k_poly) ** (1 / 5)}\n")
         f.write(f"c5: {k_poly}\n")
         f.write(f"c0: {d_poly}\n")
         f.write("Y1: 1\n")
