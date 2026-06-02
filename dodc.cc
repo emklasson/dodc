@@ -583,9 +583,12 @@ void free_workunit(workunit_t *pwu) {
     // Permanently save output of ECM, P-1, and P+1 runs.
     if (!cfg.result_file_prefix.empty()
         && (pwu->method == "ECM" || pwu->method == "P-1" || pwu->method == "P+1")) {
+        auto now = std::chrono::system_clock::now();
+        std::time_t tt = std::chrono::system_clock::to_time_t(now);
+        std::tm* local = std::localtime(&tt); // Not thread-safe. Okay here.
         ofstream flog(format("{}{}", cfg.result_file_prefix, tolower(pwu->method)), ios::app);
         ifstream ftmp(pwu->tempfile);
-        flog << ftmp.rdbuf();
+        flog << std::put_time(local, "[%Y-%m-%d %H:%M:%S] ") << ftmp.rdbuf();
     }
 
     running_worker_threads.erase(pwu->threadnumber);
