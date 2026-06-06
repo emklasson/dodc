@@ -67,6 +67,29 @@ bool cfg_base_t::read(string filename, bool silent_fail) {
     return true;
 }
 
+double parse_size(string s) {
+    auto suffixMap = map<char, double>({
+        {'K', 1e3},
+        {'M', 1e6},
+        {'G', 1e9},
+        {'T', 1e12},
+        {'P', 1e15},
+        {'E', 1e18},
+        {'Z', 1e21},
+        {'Y', 1e24},
+        {'R', 1e27},
+        {'Q', 1e30},
+    });
+    double multiplier = s.empty() ? 1 : suffixMap[toupper(s.back())];
+    if (!multiplier) {
+        multiplier = 1;
+    } else {
+        s.pop_back();
+    }
+
+    return stod(s) * multiplier;
+}
+
 bool cfg_base_t::set(string source, string name, string value) {
     try {
         if (bools.count(name)) {
@@ -75,9 +98,9 @@ bool cfg_base_t::set(string source, string name, string value) {
         } else if (ints.count(name)) {
             // Use stod for scientific notation support. Lose precision over
             // 2^53-1 but that's fine.
-            *ints[name] = stod(value);
+            *ints[name] = parse_size(value);
         } else if (floats.count(name)) {
-            *floats[name] = stod(value);
+            *floats[name] = parse_size(value);
         } else if (strings.count(name)) {
             *strings[name] = value;
         } else {
