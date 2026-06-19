@@ -46,6 +46,8 @@ cfg_t cfg;  // Configuration data from .cfg file and cmdline.
 
 string okmethods[] = {"ECM", "P-1", "P+1", "MSIEVE_QS", "CADO_SNFS", "CADO_GNFS"}; // Supported methods.
 
+string live_filename = "dodc_live.cfg"; // Filename for live config updates.
+
 bool log_prefix_newline = false; // Used by log_save_r().
 int log_pad_width = 0;           // Used by log().
 
@@ -421,13 +423,23 @@ bool parse_cmdline(int argc, char **argv) {
     return true;
 }
 
-void adjust_worker_threads(int from, int to) {
+void adjust_worker_threads(int from, int to, bool check_live_cfg = true) {
     if (from > to) {
         for (int j = from; j > to; --j) {
             log("Waiting for {} worker {} to finish...\r",
 				j - to,
 				pluralise("thread", j - to));
-            hsem_wu.acquire();
+
+            while (!hsem_wu.try_acquire_for(chrono::seconds(5))) {
+                if (check_live_cfg) {
+                    cfg.read(live_filename, true);
+                    remove(live_filename.c_str());
+                    if (cfg.workers != to) {
+                        adjust_worker_threads(j, cfg.workers, check_live_cfg);
+                        return;
+                    }
+                }
+            }
         }
         if (!to) {
             // Process results before idling in case user aborts.
@@ -449,8 +461,6 @@ void adjust_worker_threads(int from, int to) {
 /// @brief Reads a live configuration file and applies any changes.
 /// Also checks if quit has been set and if so shuts down cleanly.
 void read_live_config() {
-    string live_filename = "dodc_live.cfg";
-
     check_quit();
 
     auto old_threads = cfg.workers;
@@ -779,7 +789,7 @@ void check_quit() {
 }
 
 void cleanup_and_exit() {
-    adjust_worker_threads(cfg.workers, 0);
+    adjust_worker_threads(cfg.workers, 0, false);
 
     run_data.found_factors += process_wu_results();
 
