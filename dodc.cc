@@ -730,6 +730,11 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 		method,
 		cfg.less_spam ? '\r' : '\n');
 
+    wu.schedule_bg = wu.threadnumber > cfg.pcore_workers;
+#if defined(__APPLE__)
+    wu.cmdline_prefix = (wu.schedule_bg ? "taskpolicy -c utility " : "");
+#endif
+
     if (method == "MSIEVE_QS") {
         wu.tempfile = "msieve" + tostring(wu.threadnumber);
         wu.method = method;
@@ -740,14 +745,14 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
         wu.handler = do_workunit_cado_nfs;
     } else {
         wu.tempfile = cfg.ecm_result_file + tostring(wu.threadnumber);
-        wu.cmdline = "echo " + wu.inputnumber + " | " + cfg.ecm_cmd + " -c " + tostring(cfg.curves) + " " + cfg.ecm_args + " " + tostring(cfg.b1) + " > " + wu.tempfile;
+        wu.cmdline = "echo " + wu.inputnumber + " | "
+            + wu.cmdline_prefix
+            + cfg.ecm_cmd + " -c " + tostring(cfg.curves) + " " + cfg.ecm_args + " " + tostring(cfg.b1) + " > " + wu.tempfile;
         wu.method = method;
         wu.b1 = tostring(cfg.b1);
         wu.handler = do_workunit_gmp_ecm;
         run_data.curves += cfg.curves;
     }
-
-    wu.schedule_bg = wu.threadnumber > cfg.pcore_workers;
 
     if (is_guaranteed_factorisation(pwu->method)) {
         guaranteed_in_progress.insert(pwu->inputnumber);

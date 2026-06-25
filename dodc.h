@@ -30,6 +30,7 @@ struct workunit_t {
     string inputnumber;
     string tempfile;
     string cmdline;
+    string cmdline_prefix;  // Holds e.g. scheduling command on macOS.
     string method;
     string b1;
     bool schedule_bg; // Schedule work in Background process? (macOS)
