@@ -732,7 +732,9 @@ void do_workunit(string inputnumber, bool enhanced, string expr) {
 
     wu.schedule_bg = wu.threadnumber > cfg.pcore_workers;
 #if defined(__APPLE__)
-    wu.cmdline_prefix = (wu.schedule_bg ? "taskpolicy -c utility " : "");
+    wu.cmdline_prefix = wu.schedule_bg
+        ? format("taskpolicy -c {} ", cfg.slow_class)
+        : "";
 #endif
 
     if (method == "MSIEVE_QS") {

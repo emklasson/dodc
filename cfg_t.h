@@ -35,6 +35,7 @@ public:
 	bool report_work;
 
 	long long pcore_workers;
+    string slow_class;
 
 	string wget_cmd;
 	string ecm_cmd;
@@ -85,6 +86,7 @@ public:
         add("report_work", report_work, true);
 
         add("pcore_workers", pcore_workers, 4);
+        add("slow_class", slow_class, "utility");
 
         add("wget_cmd", wget_cmd, "wget");
         add("ecm_cmd", ecm_cmd, "ecm");
