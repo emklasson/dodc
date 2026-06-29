@@ -1,7 +1,13 @@
------ v1.??, 17 Mar 2026
+----- v1.??, 29 Jun 2026
 + new "result_file_prefix" setting permanently saves all ECM, P-1, and P+1
   output to file. Set to empty to skip.
++ add timestamps to result file logs.
++ enable some SI suffixes in config.
++ mac: use taskpolicy to set QoS class for slow workers.
++ new "slow_class" setting to set QoS class for slow workers.
 * reduce screen spam even further when "less_spam" is on.
+* prevent imaginary skew in SNFS runs.
+* check live config for changes while adjusting workers.
 
 
 ----- v1.52, 11 Mar 2026
